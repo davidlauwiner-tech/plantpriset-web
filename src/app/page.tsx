@@ -1,65 +1,60 @@
-import Image from "next/image";
+import { getFeaturedProducts } from "@/lib/supabase";
+import ProductCard from "@/components/ProductCard";
 
-export default function Home() {
+const CATEGORIES = [
+  { key: "seed", slug: "/froer", label: "Fröer", icon: "🌱", tagline: "Från frö till skörd", desc: "Grönsaks-, blomster- och kryddfröer från Sveriges bästa leverantörer" },
+  { key: "plant", slug: "/vaxter", label: "Växter", icon: "🌿", tagline: "Redo att plantera", desc: "Perenner, buskar, träd och utplanteringsväxter" },
+  { key: "bulb", slug: "/lokar", label: "Lökar & Knölar", icon: "🌷", tagline: "Vårens löften", desc: "Dahlior, tulpaner, sättlök och sättpotatis" },
+  { key: "tool", slug: "/tillbehor", label: "Tillbehör", icon: "🧰", tagline: "Rätt verktyg", desc: "Redskap, krukor, jord, belysning och bevattning" },
+];
+
+export default async function HomePage() {
+  const featured = await getFeaturedProducts(6);
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      <section className="pp-hero">
+        <div className="pp-hero-bg" />
+        <div className="pp-hero-content">
+          <p className="pp-hero-kicker">Sveriges prisjämförelse för trädgården</p>
+          <h1>Hitta det bästa priset<br />på <em>allt</em> du behöver odla</h1>
+          <p className="pp-hero-sub">Jämför priser på fröer, växter och verktyg från 7 svenska butiker. Uppdateras varje dag.</p>
+          <form action="/sok" method="GET" className="pp-hero-search">
+            <input name="q" placeholder="Vad vill du odla? T.ex. tomat, lavendel, basilika..." autoFocus />
+            <button type="submit">Jämför priser</button>
+          </form>
+          <div className="pp-hero-stats">
+            <span><strong>9 257</strong> produkter</span>
+            <span className="pp-dot">·</span>
+            <span><strong>7</strong> butiker</span>
+            <span className="pp-dot">·</span>
+            <span><strong>549</strong> prisjämförelser</span>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+      <section>
+        <div className="pp-section-header"><h2>Välj kategori</h2><p>Vad letar du efter idag?</p></div>
+        <div className="pp-cat-grid">
+          {CATEGORIES.map((c) => (
+            <a key={c.key} href={c.slug} className="pp-cat-card">
+              <span className="pp-cat-icon">{c.icon}</span>
+              <div>
+                <h3>{c.label}</h3>
+                <p className="pp-cat-tagline">{c.tagline}</p>
+                <p className="pp-cat-desc">{c.desc}</p>
+              </div>
+              <span className="pp-cat-arrow">→</span>
+            </a>
+          ))}
         </div>
-      </main>
-    </div>
+      </section>
+      {featured.length > 0 && (
+        <section>
+          <div className="pp-section-header"><h2>Störst prisskillnad just nu</h2><p>Här sparar du mest genom att välja rätt butik</p></div>
+          <div className="pp-product-grid">
+            {featured.map((p: any) => <ProductCard key={p.id} product={p} />)}
+          </div>
+        </section>
+      )}
+    </>
   );
 }
