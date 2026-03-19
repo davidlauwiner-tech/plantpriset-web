@@ -84,3 +84,9 @@ a{color:inherit;text-decoration:none}
 .pp-footer-links a{display:block;font-size:13px;margin-bottom:8px;cursor:pointer;transition:color .2s}.pp-footer-links a:hover{color:#fff}
 .pp-footer-bottom{border-top:1px solid rgba(255,255,255,0.08);max-width:1100px;margin:0 auto;padding:20px 32px;font-size:12px}
 @media(max-width:768px){.pp-hero h1{font-size:32px}.pp-hero{padding:60px 20px 48px}.pp-hero-search{flex-direction:column;gap:8px;padding:12px}.pp-hero-search button{width:100%}.pp-hero-stats{flex-wrap:wrap;gap:4px 8px}.pp-cat-grid{grid-template-columns:1fr}.pp-product-grid{grid-template-columns:1fr;padding:0 16px 32px}.pp-nav-inner{flex-wrap:wrap;padding:10px 16px;gap:10px}.pp-nav-search{max-width:100%;order:3;width:100%}.pp-nav-cats{display:none}.pp-detail-top{flex-direction:column}.pp-detail-img{width:100%;height:240px}.pp-detail{padding:16px}.pp-pt-head,.pp-pt-row{grid-template-columns:1fr 90px 90px;padding:12px 14px}.pp-footer-inner{flex-direction:column;gap:40px;padding:40px 20px}.pp-footer-links{gap:32px}.pp-section-header{padding:40px 20px 24px}.pp-section-header h2{font-size:26px}}
+
+.pp-card-ph-botanical {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+}

@@ -12,7 +12,7 @@ export async function getProducts(opts: {
 }) {
   let query = supabase
     .from("products")
-    .select("id, name, slug, latin_name, image_url, product_type, product_listings(product_id, listings(price_sek, retailer_id))")
+    .select("id, name, slug, latin_name, image_url, product_type, subcategory_id, subcategories(slug), product_listings(product_id, listings(price_sek, retailer_id))")
     .order("name")
     .limit(opts.limit || 60);
 
@@ -98,7 +98,7 @@ export async function getSubcategories(parentCategory: string) {
 export async function getProductsBySubcategory(subcategoryId: number, limit = 60) {
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, slug, latin_name, image_url, product_type, subcategory_id, product_listings(product_id, listings(price_sek, retailer_id))")
+    .select("id, name, slug, latin_name, image_url, product_type, subcategory_id, subcategories(slug), product_listings(product_id, listings(price_sek, retailer_id))")
     .eq("subcategory_id", subcategoryId)
     .order("name")
     .limit(limit);
