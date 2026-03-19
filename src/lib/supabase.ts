@@ -81,3 +81,37 @@ export async function getFeaturedProducts(limit = 12) {
     .sort((a: any, b: any) => b.spread - a.spread)
     .slice(0, limit);
 }
+
+
+export async function getSubcategories(parentCategory: string) {
+  const { data, error } = await supabase
+    .from("subcategories")
+    .select("id, slug, name, parent_category, description, icon, sort_order")
+    .eq("parent_category", parentCategory)
+    .order("sort_order");
+
+  if (error) { console.error("Subcategories error:", error); return []; }
+  return data || [];
+}
+
+export async function getProductsBySubcategory(subcategoryId: number, limit = 60) {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, slug, latin_name, image_url, product_type, subcategory_id, product_listings(product_id, listings(price_sek, retailer_id))")
+    .eq("subcategory_id", subcategoryId)
+    .order("name")
+    .limit(limit);
+
+  if (error) { console.error("Products by subcategory error:", error); return []; }
+  return (data || []).map((p) => {
+    const listings = (p.product_listings || []).map((pl) => pl.listings).filter(Boolean);
+    const prices = listings.map((l) => l.price_sek).filter(Boolean);
+    return {
+      ...p,
+      minPrice: prices.length ? Math.min(...prices) : null,
+      maxPrice: prices.length ? Math.max(...prices) : null,
+      retailers: new Set(listings.map((l) => l.retailer_id)).size,
+      product_listings: undefined,
+    };
+  });
+}
