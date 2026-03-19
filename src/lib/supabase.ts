@@ -88,6 +88,7 @@ export async function getSubcategories(parentCategory: string) {
     .from("subcategories")
     .select("id, slug, name, parent_category, description, icon, sort_order")
     .eq("parent_category", parentCategory)
+    .is("parent_id", null)
     .order("sort_order");
 
   if (error) { console.error("Subcategories error:", error); return []; }
@@ -114,4 +115,25 @@ export async function getProductsBySubcategory(subcategoryId: number, limit = 60
       product_listings: undefined,
     };
   });
+}
+
+
+export async function getChildSubcategories(parentSlug: string) {
+  // First get parent ID
+  const { data: parent } = await supabase
+    .from("subcategories")
+    .select("id")
+    .eq("slug", parentSlug)
+    .single();
+  
+  if (!parent) return [];
+  
+  const { data, error } = await supabase
+    .from("subcategories")
+    .select("id, slug, name, description, icon, sort_order")
+    .eq("parent_id", parent.id)
+    .order("sort_order");
+  
+  if (error) return [];
+  return data || [];
 }
