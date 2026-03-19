@@ -52,6 +52,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           {cat && <span className="pp-detail-cat">{cat.icon} {cat.label}</span>}
           <h1>{product.name}</h1>
           {product.latin_name && <p className="pp-detail-latin">{product.latin_name}</p>}
+          {(product as any).description && <p style={{ color: "var(--fg2)", fontSize: 15, lineHeight: 1.7, marginBottom: 16 }}>{(product as any).description}</p>}
           {hasSavings && savePct >= 5 && <div className="pp-savings"><strong>Spara {saveDiff} kr</strong> ({savePct}% billigare)</div>}
           <p className="pp-detail-sub">Prisjämförelse från {listings.length} butik{listings.length !== 1 ? "er" : ""}</p>
         </div>
