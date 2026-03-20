@@ -1,4 +1,4 @@
-import { getSubcategories, getProductsBySubcategory } from "@/lib/supabase";
+import { getSubcategories, getProductsBySubcategory, getChildSubcategories } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -16,6 +16,8 @@ export default async function SubcategoryPage({ params }: { params: Promise<{ su
   const subcats = await getSubcategories("tool");
   const sc = subcats.find((s: any) => s.slug === subcategory);
   if (!sc) notFound();
+
+  const children = await getChildSubcategories(subcategory);
   const products = await getProductsBySubcategory(sc.id, 60);
 
   return (
@@ -23,14 +25,29 @@ export default async function SubcategoryPage({ params }: { params: Promise<{ su
       <a href="/tillbehor" className="pp-back">&larr; Tillbaka till Tillbehör</a>
       <h2>{sc.icon} {sc.name}</h2>
       <p style={{ color: "var(--fg3)", fontSize: 15, marginBottom: 8 }}>{sc.description}</p>
-      <p className="pp-results-count">{products.length} produkter</p>
-      {products.length > 0 ? (
+
+      {children.length > 0 && (
+        <>
+          <p style={{ color: "var(--fg4)", fontSize: 13, marginBottom: 24 }}>Välj typ:</p>
+          <div className="pp-cat-grid" style={{ marginBottom: 48 }}>
+            {children.map((child: any) => (
+              <a key={child.slug} href={"/tillbehor/" + subcategory + "/" + child.slug} className="pp-cat-card">
+                <span className="pp-cat-icon">{child.icon}</span>
+                <div>
+                  <h3>{child.name}</h3>
+                  <p className="pp-cat-desc">{child.description}</p>
+                </div>
+                <span className="pp-cat-arrow">&rarr;</span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
+      <p className="pp-results-count">{products.length} produkter totalt</p>
+      {products.length > 0 && (
         <div className="pp-product-grid">
           {products.map((p: any) => <ProductCard key={p.id} product={p} />)}
-        </div>
-      ) : (
-        <div style={{ textAlign: "center", padding: 64, color: "var(--fg3)" }}>
-          <p>Inga produkter i denna kategori ännu.</p>
         </div>
       )}
     </div>
