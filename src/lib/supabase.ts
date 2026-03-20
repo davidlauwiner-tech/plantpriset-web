@@ -105,8 +105,8 @@ export async function getProductsBySubcategory(subcategoryId: number, limit = 60
 
   if (error) { console.error("Products by subcategory error:", error); return []; }
   return (data || []).map((p) => {
-    const listings = (p.product_listings || []).map((pl) => pl.listings).filter(Boolean);
-    const prices = listings.map((l) => l.price_sek).filter(Boolean);
+    const listings = (p.product_listings || []).map((pl: any) => pl.listings).flat().filter(Boolean);
+    const prices = listings.map((l: any) => l.price_sek).filter(Boolean);
     return {
       ...p,
       minPrice: prices.length ? Math.min(...prices) : null,
