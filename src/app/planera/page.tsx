@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const STYLES = [
   { id: "romantic", name: "Romantisk", desc: "Mjuka färger, rosor, lavendel och riddarsporre. Lummigt och drömskt.", color: "#d4a0c0" },
@@ -32,13 +32,35 @@ export default function PlaneraPage() {
   const [sun, setSun] = useState("");
   const [style, setStyle] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState("");
   const [plan, setPlan] = useState<Plan | null>(null);
   const [pricedPlants, setPricedPlants] = useState<PricedPlant[]>([]);
   const [error, setError] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [diagramSvg, setDiagramSvg] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function removePhoto() {
+    setPhotoFile(null);
+    setPhotoPreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   async function generatePlan() {
     setLoading(true);
     setError("");
+    setLoadingStep("Designar din plantering...");
     const styleName = STYLES.find(s => s.id === style)?.name || "";
     const styleDesc = STYLES.find(s => s.id === style)?.desc || "";
     const spaceName = SPACES.find(s => s.id === space)?.name || "";
@@ -63,6 +85,7 @@ export default function PlaneraPage() {
       const parsed: Plan = JSON.parse(clean);
       setPlan(parsed);
 
+      setLoadingStep("Hämtar priser från 7 butiker...");
       const priced: PricedPlant[] = [];
       for (const plant of parsed.plants) {
         const searchName = plant.name.toLowerCase().replace(/['\u2019]/g, "");
@@ -85,12 +108,39 @@ export default function PlaneraPage() {
         priced.push({ ...plant, product_slug: seedSlug || plantSlug, seed_price: minSeed, plant_price: minPlant });
       }
       setPricedPlants(priced);
+
+      // Generate garden visualization
+      setLoadingStep(photoFile ? "Skapar visualisering av din yta..." : "Målar din trädgård...");
+      try {
+        const formData = new FormData();
+        formData.append("plants", JSON.stringify(parsed.plants));
+        formData.append("style", style);
+        formData.append("space", space);
+        formData.append("sun", sun);
+        formData.append("length", length);
+        formData.append("width", width);
+        formData.append("title", parsed.title);
+        if (photoFile) {
+          formData.append("photo", photoFile);
+        }
+
+        const imgRes = await fetch("/api/generate-image", {
+          method: "POST",
+          body: formData,
+        });
+        const imgData = await imgRes.json();
+        if (imgData.imageUrl) setImageUrl(imgData.imageUrl);
+        if (imgData.diagram) setDiagramSvg(imgData.diagram);
+        if (imgData.diagram) setDiagramSvg(imgData.diagram);
+      } catch (e) { console.log("Image generation failed:", e); }
     } catch (err: any) { setError("Kunde inte generera plan: " + err.message); }
     setLoading(false);
+    setLoadingStep("");
   }
 
   const seedTotal = pricedPlants.reduce((sum, p) => sum + (p.seed_price || 0) * p.quantity, 0);
   const plantTotal = pricedPlants.reduce((sum, p) => sum + (p.plant_price || 0) * p.quantity, 0);
+  const stepLabels = ["Utrymme", "Mått", "Sol", "Stil", "Foto"];
 
   return (
     <div className="pp-results" style={{ maxWidth: 800, margin: "0 auto" }}>
@@ -99,7 +149,7 @@ export default function PlaneraPage() {
         <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 32, marginBottom: 8 }}>Planera din trädgård</h2>
         <p style={{ color: "var(--fg3)", fontSize: 16, marginBottom: 40, lineHeight: 1.6 }}>Berätta om din yta så skapar vi ett personligt planteringsförslag med växter som passar — komplett med inköpslista och bästa priser.</p>
         <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-          {["Utrymme", "Mått", "Sol", "Stil"].map((label, i) => (
+          {stepLabels.map((label, i) => (
             <div key={i} style={{ flex: 1, textAlign: "center", padding: "8px 0", borderBottom: "3px solid " + (i <= step ? "var(--accent)" : "var(--border)"), color: i <= step ? "var(--fg)" : "var(--fg3)", fontSize: 13, fontWeight: i === step ? 600 : 400 }}>{label}</div>
           ))}
         </div>
@@ -135,20 +185,132 @@ export default function PlaneraPage() {
         {step === 3 && (<div>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 22, marginBottom: 16 }}>Vilken stil vill du ha?</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {STYLES.map(s => (<button key={s.id} onClick={() => setStyle(s.id)} style={{ padding: "20px", textAlign: "left", cursor: "pointer", border: style === s.id ? "2px solid var(--accent)" : "1px solid var(--border)", borderRadius: 12, background: style === s.id ? "var(--green-bg)" : "var(--bg)", fontFamily: "inherit", fontSize: 15 }}><div style={{ width: 32, height: 32, borderRadius: "50%", background: s.color, marginBottom: 8, opacity: 0.7 }} /><strong>{s.name}</strong><br /><span style={{ color: "var(--fg3)", fontSize: 13 }}>{s.desc}</span></button>))}
+            {STYLES.map(s => (<button key={s.id} onClick={() => { setStyle(s.id); setStep(4); }} style={{ padding: "20px", textAlign: "left", cursor: "pointer", border: style === s.id ? "2px solid var(--accent)" : "1px solid var(--border)", borderRadius: 12, background: style === s.id ? "var(--green-bg)" : "var(--bg)", fontFamily: "inherit", fontSize: 15 }}><div style={{ width: 32, height: 32, borderRadius: "50%", background: s.color, marginBottom: 8, opacity: 0.7 }} /><strong>{s.name}</strong><br /><span style={{ color: "var(--fg3)", fontSize: 13 }}>{s.desc}</span></button>))}
           </div>
+          <button onClick={() => setStep(2)} style={{ marginTop: 16, padding: "12px 24px", cursor: "pointer", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", fontFamily: "inherit", fontSize: 15 }}>Tillbaka</button>
+        </div>)}
+
+        {step === 4 && (<div>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 22, marginBottom: 8 }}>Fota din yta</h3>
+          <p style={{ color: "var(--fg3)", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>Ta en bild på platsen du vill plantera — så visar vi hur det kan se ut med växter på plats. Du kan också hoppa över detta steg.</p>
+
+          {!photoPreview ? (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: "2px dashed var(--border)",
+                borderRadius: 16,
+                padding: "48px 24px",
+                textAlign: "center",
+                cursor: "pointer",
+                background: "var(--bg)",
+                transition: "border-color 0.2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
+            >
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📷</div>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Tryck för att välja bild</div>
+              <div style={{ fontSize: 13, color: "var(--fg3)" }}>eller dra och släpp en bild här</div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoSelect}
+                style={{ display: "none" }}
+              />
+            </div>
+          ) : (
+            <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
+              <img src={photoPreview} alt="Din yta" style={{ width: "100%", height: "auto", display: "block", maxHeight: 400, objectFit: "cover" }} />
+              <button
+                onClick={removePhoto}
+                style={{
+                  position: "absolute", top: 12, right: 12,
+                  width: 36, height: 36, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.6)", color: "#fff",
+                  border: "none", cursor: "pointer", fontSize: 18,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >&times;</button>
+              <div style={{
+                position: "absolute", bottom: 0, left: 0, right: 0,
+                padding: "12px 16px",
+                background: "linear-gradient(transparent, rgba(0,0,0,0.5))",
+                color: "#fff", fontSize: 13,
+              }}>
+                ✓ Bild vald — AI:n kommer visa växter i just din yta
+              </div>
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-            <button onClick={() => setStep(2)} style={{ padding: "12px 24px", cursor: "pointer", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", fontFamily: "inherit", fontSize: 15 }}>Tillbaka</button>
-            <button onClick={generatePlan} disabled={!style || loading} style={{ padding: "12px 32px", cursor: style && !loading ? "pointer" : "default", border: "none", borderRadius: 8, background: style && !loading ? "var(--accent)" : "var(--border)", color: "#fff", fontFamily: "inherit", fontSize: 15 }}>{loading ? "Skapar din plan..." : "Skapa planteringsplan"}</button>
+            <button onClick={() => setStep(3)} style={{ padding: "12px 24px", cursor: "pointer", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", fontFamily: "inherit", fontSize: 15 }}>Tillbaka</button>
+            <button
+              onClick={generatePlan}
+              disabled={loading}
+              style={{
+                padding: "12px 32px", cursor: loading ? "default" : "pointer",
+                border: "none", borderRadius: 8,
+                background: loading ? "var(--border)" : "var(--accent)",
+                color: "#fff", fontFamily: "inherit", fontSize: 15, flex: 1,
+              }}
+            >
+              {photoPreview ? "Skapa plan med min bild" : "Skapa plan utan bild"}
+            </button>
           </div>
         </div>)}
       </>)}
 
-      {loading && (<div style={{ textAlign: "center", padding: 48 }}><div style={{ fontSize: 48, marginBottom: 16 }}>&#127793;</div><p style={{ color: "var(--fg3)", fontSize: 16 }}>AI:n designar din trädgård...</p><p style={{ color: "var(--fg4)", fontSize: 13 }}>Väljer växter, placerar dem och hämtar priser</p></div>)}
+      {loading && (<div style={{ textAlign: "center", padding: 48 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>&#127793;</div>
+        <p style={{ color: "var(--fg3)", fontSize: 16 }}>{loadingStep || "AI:n designar din trädgård..."}</p>
+        <p style={{ color: "var(--fg4)", fontSize: 13 }}>Väljer växter, placerar dem och hämtar priser</p>
+      </div>)}
 
       {plan && !loading && (<div>
         <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 28, marginBottom: 8 }}>{plan.title}</h2>
         <p style={{ color: "var(--fg2)", fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}>{plan.description}</p>
+
+        {imageUrl && (
+          <div style={{ marginBottom: 32 }}>
+            {photoPreview && (
+              <div style={{ display: "flex", gap: 2, marginBottom: 8 }}>
+                <div style={{ flex: 1, fontSize: 12, color: "var(--fg3)", textAlign: "center", paddingBottom: 4 }}>Före</div>
+                <div style={{ flex: 1, fontSize: 12, color: "var(--fg3)", textAlign: "center", paddingBottom: 4 }}>Efter</div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 2, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
+              {photoPreview && (
+                <div style={{ flex: 1, position: "relative" }}>
+                  <img src={photoPreview} alt="Före" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </div>
+              )}
+              <div style={{ flex: 1, position: "relative" }}>
+                <img src={imageUrl} alt={plan.title} style={{ width: "100%", height: "auto", display: "block" }} />
+              </div>
+            </div>
+            {photoPreview && (
+              <p style={{ fontSize: 12, color: "var(--fg4)", textAlign: "center", marginTop: 8 }}>AI-genererad visualisering — visar ungefärligt resultat</p>
+            )}
+          </div>
+        )}
+
+        {!photoPreview && imageUrl && (
+          <div style={{ marginBottom: 32, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
+            <img src={imageUrl} alt={plan.title} style={{ width: "100%", height: "auto", display: "block" }} />
+          </div>
+        )}
+
+
+        {diagramSvg && (
+          <div style={{ marginBottom: 32 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 20, marginBottom: 12 }}>Planteringsdiagram</h3>
+            <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid var(--border)", background: "#fafaf5" }} dangerouslySetInnerHTML={{ __html: diagramSvg }} />
+            <p style={{ fontSize: 12, color: "var(--fg4)", marginTop: 8 }}>Höga växter placeras längst bak, låga längst fram för bästa effekt</p>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
           <div style={{ flex: 1, padding: "20px", background: "var(--green-bg)", borderRadius: 12 }}>
             <div style={{ fontSize: 13, color: "var(--fg3)", marginBottom: 4 }}>Med fröer</div>
@@ -185,8 +347,8 @@ export default function PlaneraPage() {
           <p style={{ color: "var(--fg2)", fontSize: 14, lineHeight: 1.7 }}>{plan.tips}</p>
         </div>)}
         <div style={{ display: "flex", gap: 12 }}>
-          <button onClick={() => { setPlan(null); setPricedPlants([]); setStep(0); }} style={{ padding: "12px 24px", cursor: "pointer", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", fontFamily: "inherit", fontSize: 15 }}>Börja om</button>
-          <button onClick={() => { setPlan(null); setPricedPlants([]); generatePlan(); }} style={{ padding: "12px 24px", cursor: "pointer", border: "none", borderRadius: 8, background: "var(--accent)", color: "#fff", fontFamily: "inherit", fontSize: 15 }}>Generera nytt förslag</button>
+          <button onClick={() => { setPlan(null); setPricedPlants([]); setImageUrl(""); setDiagramSvg(""); setPhotoFile(null); setPhotoPreview(""); setStep(0); }} style={{ padding: "12px 24px", cursor: "pointer", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", fontFamily: "inherit", fontSize: 15 }}>Börja om</button>
+          <button onClick={() => { setPlan(null); setPricedPlants([]); setImageUrl(""); setDiagramSvg(""); generatePlan(); }} style={{ padding: "12px 24px", cursor: "pointer", border: "none", borderRadius: 8, background: "var(--accent)", color: "#fff", fontFamily: "inherit", fontSize: 15 }}>Generera nytt förslag</button>
         </div>
         {error && <p style={{ color: "red", marginTop: 16 }}>{error}</p>}
       </div>)}

@@ -1,0 +1,51 @@
+import { NextResponse } from "next/server";
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const { plants, style, space, sun, length, width } = body;
+
+  const plantList = plants.map((p: any) => p.name + " (" + p.latin + ", " + p.color + ", " + p.height_cm + "cm)").join(", ");
+  
+  const styleDescriptions: Record<string, string> = {
+    romantic: "soft pastel colors, roses, lavender, dreamy and lush, cottage garden feel",
+    modern: "clean lines, ornamental grasses, white flowers, minimalist Scandinavian design",
+    natural: "wildflower meadow, prairie grasses, natural and organic, Swedish countryside",
+    cottage: "mixed perennials, hollyhocks, lupins, colorful English cottage garden",
+  };
+
+  const prompt = "A beautiful watercolor botanical illustration of a Swedish garden bed viewed from a slight angle, " +
+    (styleDescriptions[style] || "romantic garden") + ". " +
+    "The bed is " + length + "m x " + width + "m. " +
+    "Plants included: " + plantList + ". " +
+    "Tall plants in the back, medium in the middle, low plants in front. " +
+    "Soft watercolor style with botanical accuracy, labels with plant names in elegant handwriting. " +
+    "Light grey background, professional garden design illustration. No people, no buildings.";
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (process.env.OPENAI_API_KEY || ""),
+      },
+      body: JSON.stringify({
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: "1792x1024",
+        quality: "standard",
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (data.error) {
+      return NextResponse.json({ error: data.error.message }, { status: 400 });
+    }
+
+    const imageUrl = data.data?.[0]?.url;
+    return NextResponse.json({ imageUrl });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
