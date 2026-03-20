@@ -42,22 +42,22 @@ const PALETTE: Record<string, { bg: string; accent: string }> = {
 };
 
 function PlaceholderSVG({ subcatSlug, type }: { subcatSlug?: string; type?: string }) {
-  const palette = (subcatSlug && PALETTE[subcatSlug]) || { bg: "#f0f5ee", accent: "#5a9a4a" };
-  const icon = CATS[type || "seed"]?.icon || "🌱";
+  const palette = (subcatSlug && PALETTE[subcatSlug]) || { bg: "#faf8f4", accent: "#5a9a4a" };
+  const typeDefault: Record<string, string> = {
+    seed: "ettariga-blommor", plant: "perenner", bulb: "blomsterlokar", tool: "redskap"
+  };
+  const illustration = subcatSlug || typeDefault[type || "seed"] || "ettariga-blommor";
   return (
     <div className="pp-card-ph-botanical" style={{
-      background: "linear-gradient(135deg, " + palette.bg + " 0%, " + palette.bg + "dd 100%)",
+      background: palette.bg,
       display: "flex", alignItems: "center", justifyContent: "center",
-      position: "relative", overflow: "hidden",
     }}>
-      <svg viewBox="0 0 200 200" style={{ width: "60%", height: "60%", opacity: 0.18 }}>
-        <circle cx="100" cy="100" r="80" fill={palette.accent} opacity="0.15" />
-        {[0,45,90,135,180,225,270,315].map(r => (
-          <path key={r} d="M100 20 C95 5,100 -5,100 -5 C100 -5,105 5,100 20 Z"
-            fill={palette.accent} opacity="0.25" transform={"rotate(" + r + " 100 100)"} />
-        ))}
-      </svg>
-      <span style={{ position: "absolute", fontSize: 48, opacity: 0.6 }}>{icon}</span>
+      <img
+        src={"/illustrations/" + illustration + ".svg"}
+        alt=""
+        style={{ width: "70%", height: "70%", objectFit: "contain", opacity: 0.85 }}
+        loading="lazy"
+      />
     </div>
   );
 }
