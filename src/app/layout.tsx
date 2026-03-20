@@ -26,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/vaxter">Växter</a>
               <a href="/lokar">Lökar &amp; Knölar</a>
               <a href="/tillbehor">Tillbehör</a>
+            <a href="/planera" style={{color:"var(--accent)",fontWeight:600}}>Planera</a>
             </div>
           </div>
         </nav>
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <a href="/vaxter">Växter</a>
                 <a href="/lokar">Lökar &amp; Knölar</a>
                 <a href="/tillbehor">Tillbehör</a>
+            <a href="/planera" style={{color:"var(--accent)",fontWeight:600}}>Planera</a>
               </div>
               <div>
                 <h4>Butiker</h4>
