@@ -53,6 +53,7 @@ export async function POST(request: Request) {
 
   try {
     let imageUrl: string | undefined;
+    let editDebug: any = null;
     let bedShape = "rectangle";
 
     if (photoBuffer) {
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
       const editData = await editResponse.json();
 
       if (editData.error) {
-        console.log("gpt-image-1 edit failed:", editData.error.message);
+        editDebug = editData.error;
         imageUrl = await generateWithDalle3(plantList, style, space, length, width, styleDescriptions, spaceDescriptions);
       } else {
         const b64 = editData.data?.[0]?.b64_json;
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
     // Generate SVG planting diagram with detected shape
     const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape);
 
-    return NextResponse.json({ imageUrl, diagram });
+    return NextResponse.json({ imageUrl, diagram, editDebug, bedShape });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
