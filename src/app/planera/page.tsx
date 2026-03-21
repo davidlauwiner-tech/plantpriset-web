@@ -1,6 +1,24 @@
 "use client";
 import { useState, useRef } from "react";
 
+async function resizeImage(file: File, maxWidth = 1024, quality = 0.7): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        resolve(new File([blob!], "garden.jpg", { type: "image/jpeg" }));
+      }, "image/jpeg", quality);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 const STYLES = [
   { id: "romantic", name: "Romantisk", desc: "Mjuka färger, rosor, lavendel och riddarsporre. Lummigt och drömskt.", color: "#d4a0c0" },
   { id: "modern", name: "Modern", desc: "Strama linjer, gräs, vita blommor och skulpturala växter.", color: "#8a9a8a" },
@@ -121,7 +139,8 @@ export default function PlaneraPage() {
         formData.append("width", width);
         formData.append("title", parsed.title);
         if (photoFile) {
-          formData.append("photo", photoFile);
+          const resized = await resizeImage(photoFile);
+          formData.append("photo", resized);
         }
 
         const imgRes = await fetch("/api/generate-image", {
