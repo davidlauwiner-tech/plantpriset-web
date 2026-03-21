@@ -110,8 +110,6 @@ export async function POST(request: Request) {
       editFormData.append("image", photoBlob, "garden.jpg");
       editFormData.append("model", "gpt-image-1");
       editFormData.append("prompt", editPrompt);
-      editFormData.append("size", "1536x1024");
-      editFormData.append("quality", "medium");
       editFormData.append("response_format", "b64_json");
 
       const editResponse = await fetch("https://api.openai.com/v1/images/edits", {
