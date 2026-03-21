@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         "Swedish summer daylight. Photorealistic result.";
 
       const editFormData = new FormData();
-      const photoBlob = new Blob([photoBuffer], { type: "image/jpeg" });
+      const photoBlob = new Blob([new Uint8Array(photoBuffer)], { type: "image/jpeg" });
       editFormData.append("image[]", photoBlob, "garden.jpg");
       editFormData.append("model", "gpt-image-1");
       editFormData.append("prompt", editPrompt);
