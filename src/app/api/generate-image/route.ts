@@ -182,13 +182,6 @@ async function generateWithDalle3(
 }
 
 function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null): string {
-  const sorted = [...plants].sort((a, b) => b.height_cm - a.height_cm);
-  const backRow = sorted.filter(p => p.height_cm > 60);
-  const midRow = sorted.filter(p => p.height_cm >= 25 && p.height_cm <= 60);
-  const frontRow = sorted.filter(p => p.height_cm < 25);
-  if (frontRow.length === 0 && midRow.length > 2) frontRow.push(...midRow.splice(Math.floor(midRow.length/2)));
-  if (midRow.length === 0 && backRow.length > 2) midRow.push(...backRow.splice(Math.floor(backRow.length/2)));
-
   const W = 700, H = 440, pX = 60, pT = 55, bW = W - pX * 2, bH = H - pT - 65;
 
   const cM: Record<string,string> = {
@@ -197,128 +190,110 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     "Röd":"#c85050","Orange":"#d49040","Grön":"#6aaa5a"
   };
 
-  // Generate bed outline path based on shape
-  function bedPath(): string {
-    const x = pX, y = pT, w = bW, h = bH;
-    const r = 16;
-    // Use custom outline from GPT-4o vision if available
+  // Seeded random for consistent layout
+  let seed = 42;
+  function rand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+
+  // Bed boundary path
+  function getBedPath(): string {
+    const x = pX, y = pT, w = bW, h = bH, r = 16;
     if (bedOutline && bedOutline.length >= 4) {
-      const pts = bedOutline.map(([px, py]) => [x + (px / 100) * w, y + (py / 100) * h]);
-      let d = "M" + pts[0][0] + "," + pts[0][1];
+      const pts = bedOutline.map(([px, py]: number[]) => [x + (px / 100) * w, y + (py / 100) * h]);
+      let d = "M" + pts[0][0].toFixed(1) + "," + pts[0][1].toFixed(1);
       for (let i = 1; i < pts.length; i++) {
         const prev = pts[i - 1];
         const curr = pts[i];
         const next = pts[(i + 1) % pts.length];
         const cpx = curr[0] + (next[0] - prev[0]) * 0.15;
         const cpy = curr[1] + (next[1] - prev[1]) * 0.15;
-        d += " Q" + cpx + "," + cpy + " " + curr[0] + "," + curr[1];
+        d += " Q" + cpx.toFixed(1) + "," + cpy.toFixed(1) + " " + curr[0].toFixed(1) + "," + curr[1].toFixed(1);
       }
-      d += " Z";
-      return d;
+      return d + " Z";
     }
-    switch (bedShape) {
-      case "kidney":
-        return "M" + (x+r) + "," + y +
-          " Q" + (x+w*0.3) + "," + (y-15) + " " + (x+w*0.5) + "," + y +
-          " Q" + (x+w*0.7) + "," + (y+15) + " " + (x+w-r) + "," + y +
-          " Q" + (x+w) + "," + y + " " + (x+w) + "," + (y+r) +
-          " L" + (x+w) + "," + (y+h-r) +
-          " Q" + (x+w) + "," + (y+h) + " " + (x+w-r) + "," + (y+h) +
-          " Q" + (x+w*0.6) + "," + (y+h+10) + " " + (x+w*0.4) + "," + (y+h) +
-          " Q" + (x+w*0.2) + "," + (y+h-10) + " " + (x+r) + "," + (y+h) +
-          " Q" + x + "," + (y+h) + " " + x + "," + (y+h-r) +
-          " L" + x + "," + (y+r) +
-          " Q" + x + "," + y + " " + (x+r) + "," + y + " Z";
-      case "oval":
-      case "circular":
-        return "M" + (x+w/2) + "," + y +
-          " C" + (x+w) + "," + y + " " + (x+w) + "," + (y+h) + " " + (x+w/2) + "," + (y+h) +
-          " C" + x + "," + (y+h) + " " + x + "," + y + " " + (x+w/2) + "," + y + " Z";
-      case "curved":
-        return "M" + (x+r) + "," + y +
-          " L" + (x+w-r) + "," + y +
-          " Q" + (x+w) + "," + y + " " + (x+w) + "," + (y+r) +
-          " Q" + (x+w+15) + "," + (y+h*0.5) + " " + (x+w) + "," + (y+h-r) +
-          " Q" + (x+w) + "," + (y+h) + " " + (x+w-r) + "," + (y+h) +
-          " L" + (x+r) + "," + (y+h) +
-          " Q" + x + "," + (y+h) + " " + x + "," + (y+h-r) +
-          " Q" + (x-15) + "," + (y+h*0.5) + " " + x + "," + (y+r) +
-          " Q" + x + "," + y + " " + (x+r) + "," + y + " Z";
-      case "L-shaped":
-        return "M" + x + "," + y +
-          " L" + (x+w*0.6) + "," + y +
-          " L" + (x+w*0.6) + "," + (y+h*0.45) +
-          " L" + (x+w) + "," + (y+h*0.45) +
-          " L" + (x+w) + "," + (y+h) +
-          " L" + x + "," + (y+h) + " Z";
-      case "triangular":
-        return "M" + (x+w/2) + "," + y +
-          " L" + (x+w) + "," + (y+h) +
-          " L" + x + "," + (y+h) + " Z";
-      case "narrow-strip":
-        return "M" + (x+r) + "," + (y+h*0.25) +
-          " L" + (x+w-r) + "," + y +
-          " Q" + (x+w) + "," + y + " " + (x+w) + "," + (y+r) +
-          " L" + (x+w-r) + "," + (y+h) +
-          " L" + (x+r) + "," + (y+h*0.75) +
-          " Q" + x + "," + (y+h*0.7) + " " + x + "," + (y+h*0.6) + " Z";
-      case "irregular":
-        return "M" + (x+w*0.1) + "," + (y+h*0.1) +
-          " Q" + (x+w*0.3) + "," + (y-10) + " " + (x+w*0.6) + "," + (y+h*0.05) +
-          " Q" + (x+w*0.85) + "," + (y+h*0.1) + " " + (x+w*0.95) + "," + (y+h*0.3) +
-          " Q" + (x+w+5) + "," + (y+h*0.6) + " " + (x+w*0.9) + "," + (y+h*0.85) +
-          " Q" + (x+w*0.7) + "," + (y+h+10) + " " + (x+w*0.4) + "," + (y+h*0.95) +
-          " Q" + (x+w*0.15) + "," + (y+h*0.9) + " " + (x+w*0.05) + "," + (y+h*0.65) +
-          " Q" + (x-5) + "," + (y+h*0.4) + " " + (x+w*0.1) + "," + (y+h*0.1) + " Z";
-      default: // rectangle
-        return "M" + (x+r) + "," + y +
-          " L" + (x+w-r) + "," + y +
-          " Q" + (x+w) + "," + y + " " + (x+w) + "," + (y+r) +
-          " L" + (x+w) + "," + (y+h-r) +
-          " Q" + (x+w) + "," + (y+h) + " " + (x+w-r) + "," + (y+h) +
-          " L" + (x+r) + "," + (y+h) +
-          " Q" + x + "," + (y+h) + " " + x + "," + (y+h-r) +
-          " L" + x + "," + (y+r) +
-          " Q" + x + "," + y + " " + (x+r) + "," + y + " Z";
-    }
+    return "M"+(x+r)+","+y+" L"+(x+w-r)+","+y+" Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+" L"+(x+w)+","+(y+h-r)+" Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+" L"+(x+r)+","+(y+h)+" Q"+x+","+(y+h)+" "+x+","+(y+h-r)+" L"+x+","+(y+r)+" Q"+x+","+y+" "+(x+r)+","+y+" Z";
   }
 
-  function pc(row: any[], yC: number, rowH: number): string {
-    if (!row.length) return "";
-    let o = "";
-    // Calculate circle size to fill the row densely
-    const totalPlants = row.reduce((s: number, p: any) => s + Math.min(p.quantity, 15), 0);
-    const baseR = Math.min(26, Math.max(10, bW / (totalPlants + 1) / 1.4));
-    
-    const spacing = bW / (row.length + 1);
-    row.forEach((p: any, idx: number) => {
-      const qty = Math.min(p.quantity, 15);
-      const r = Math.min(baseR + 2, Math.max(8, p.height_cm / 6));
-      const f = cM[p.color] || "#6aaa5a";
-      const clusterW = r * 2 * Math.ceil(Math.sqrt(qty));
-      const groupCx = pX + spacing * (idx + 1);
-      
-      // Pack circles in a dense organic cluster that fills the space
-      for (let q = 0; q < qty; q++) {
-        const angle = (q / qty) * Math.PI * 2 + (q * 0.8);
-        const ring = q < 1 ? 0 : Math.ceil(q / 4);
-        const dist = ring * r * 0.95;
-        const cx = groupCx + Math.cos(angle) * dist + (Math.random() - 0.5) * r * 0.5;
-        const cy = yC + Math.sin(angle) * dist * 1.3 + (Math.random() - 0.5) * r * 0.6;
-        const cr = r * (0.85 + Math.random() * 0.3);
-        o += "<circle cx=\""+cx.toFixed(1)+"\" cy=\""+cy.toFixed(1)+"\" r=\""+cr.toFixed(1)+"\" fill=\""+f+"\" fill-opacity=\""+(0.5 + Math.random()*0.3).toFixed(2)+"\" stroke=\""+f+"\" stroke-width=\"0.8\"/>";
+  // Point-in-polygon (ray casting)
+  function pointInBed(px: number, py: number): boolean {
+    if (bedOutline && bedOutline.length >= 4) {
+      const pts = bedOutline.map(([bx, by]: number[]) => [pX + (bx / 100) * bW, pT + (by / 100) * bH]);
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, yi] = pts[i], [xj, yj] = pts[j];
+        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
       }
-      // Label
-      o += "<text x=\""+groupCx.toFixed(1)+"\" y=\""+(yC + r * 2 + 12).toFixed(1)+"\" text-anchor=\"middle\" font-size=\"8\" font-weight=\"500\" fill=\"#444\">"+p.name+"</text>";
-      o += "<text x=\""+groupCx.toFixed(1)+"\" y=\""+(yC + r * 2 + 21).toFixed(1)+"\" text-anchor=\"middle\" font-size=\"7\" fill=\"#888\">"+p.quantity+"st</text>";
-      
-      // evenly spaced
-    });
-    return o;
+      return inside;
+    }
+    return px > pX + 8 && px < pX + bW - 8 && py > pT + 8 && py < pT + bH - 8;
   }
 
-  const bY = pT + bH * 0.2, mY = pT + bH * 0.5, fY = pT + bH * 0.8;
+  // Sort: tallest first (go in back/top of diagram)
+  const sorted = [...plants].sort((a: any, b: any) => b.height_cm - a.height_cm);
 
+  interface PlantCircle { x: number; y: number; r: number; color: string; name: string; species: number; }
+  const placed: PlantCircle[] = [];
+  const speciesInfo: { name: string; color: string; count: number; cx: number; cy: number }[] = [];
+  const maxH = Math.max(...sorted.map((p: any) => p.height_cm), 150);
+
+  sorted.forEach((plant: any, si: number) => {
+    const qty = Math.min(plant.quantity || 3, 15);
+    const baseR = 8 + (plant.height_cm / maxH) * 16;
+    const color = cM[plant.color] || "#6aaa5a";
+    const heightRatio = plant.height_cm / maxH;
+    const targetY = pT + bH * (0.15 + (1 - heightRatio) * 0.7);
+
+    let groupCx = 0, groupCy = 0, groupN = 0;
+
+    for (let q = 0; q < qty; q++) {
+      let bestX = 0, bestY = 0, bestScore = -Infinity;
+
+      for (let attempt = 0; attempt < 80; attempt++) {
+        let cx: number, cy: number;
+        if (q === 0) {
+          cx = pX + 30 + rand() * (bW - 60);
+          cy = targetY + (rand() - 0.5) * bH * 0.25;
+        } else {
+          const prev = placed.filter(p => p.species === si);
+          const avgX = prev.reduce((s, p) => s + p.x, 0) / prev.length;
+          const avgY = prev.reduce((s, p) => s + p.y, 0) / prev.length;
+          cx = avgX + (rand() - 0.5) * baseR * 4;
+          cy = avgY + (rand() - 0.5) * baseR * 4;
+        }
+
+        if (!pointInBed(cx, cy)) continue;
+
+        let score = 0;
+        score -= Math.abs(cy - targetY) * 0.3;
+
+        for (const p of placed) {
+          const d = Math.sqrt((cx - p.x) ** 2 + (cy - p.y) ** 2);
+          const overlap = (p.r + baseR) - d;
+          if (overlap > baseR * 0.5) score -= overlap * 8;
+          else if (overlap > -2) score += 8; // Touching = ideal
+          else if (d > baseR * 3) score -= 2; // Too far from others
+        }
+
+        const sameSpecies = placed.filter(p => p.species === si);
+        for (const p of sameSpecies) {
+          const d = Math.sqrt((cx - p.x) ** 2 + (cy - p.y) ** 2);
+          if (d < baseR * 3.5) score += 12;
+        }
+
+        if (score > bestScore) { bestScore = score; bestX = cx; bestY = cy; }
+      }
+
+      if (bestScore > -Infinity) {
+        placed.push({ x: bestX, y: bestY, r: baseR * (0.85 + rand() * 0.3), color, name: plant.name, species: si });
+        groupCx += bestX; groupCy += bestY; groupN++;
+      }
+    }
+
+    if (groupN > 0) {
+      speciesInfo.push({ name: plant.name, color, count: groupN, cx: groupCx / groupN, cy: groupCy / groupN });
+    }
+  });
+
+  // Build SVG
   const shapeLabels: Record<string,string> = {
     rectangle: "Rektangulär rabatt", kidney: "Njurformad rabatt", oval: "Oval rabatt",
     circular: "Rund rabatt", curved: "Svängd rabatt", "L-shaped": "L-formad rabatt",
@@ -327,30 +302,27 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
 
   let s = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
   s += '<rect width="100%" height="100%" fill="#fafaf5"/>';
+  s += '<path d="'+getBedPath()+'" fill="#f0ede4" stroke="#c5c0b0" stroke-width="1.5" stroke-dasharray="6,3"/>';
 
-  // Bed shape
-  s += '<path d="'+bedPath()+'" fill="#f0ede4" stroke="#c5c0b0" stroke-width="1.5" stroke-dasharray="6,3"/>';
+  // Draw circles sorted by Y (back to front for natural overlap)
+  const sortedPlaced = [...placed].sort((a, b) => a.y - b.y);
+  for (const p of sortedPlaced) {
+    const op = (0.45 + rand() * 0.25).toFixed(2);
+    s += '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+p.r.toFixed(1)+'" fill="'+p.color+'" fill-opacity="'+op+'" stroke="'+p.color+'" stroke-opacity="0.6" stroke-width="0.8"/>';
+  }
 
-  // Row labels
-  s += '<text x="'+(pX-8)+'" y="'+bY+'" text-anchor="end" font-size="10" fill="#888" dominant-baseline="middle">Bak</text>';
-  if (midRow.length > 0) s += '<text x="'+(pX-8)+'" y="'+mY+'" text-anchor="end" font-size="10" fill="#888" dominant-baseline="middle">Mitt</text>';
-  s += '<text x="'+(pX-8)+'" y="'+fY+'" text-anchor="end" font-size="10" fill="#888" dominant-baseline="middle">Fram</text>';
+  // Species labels
+  for (const sp of speciesInfo) {
+    const ly = sp.cy + 22;
+    s += '<text x="'+sp.cx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle" font-size="8" font-weight="600" fill="#444">'+sp.name+'</text>';
+    s += '<text x="'+sp.cx.toFixed(1)+'" y="'+(ly+10).toFixed(1)+'" text-anchor="middle" font-size="7" fill="#888">'+sp.count+'st</text>';
+  }
 
-  // Row dividers
-  s += '<line x1="'+pX+'" y1="'+(pT+bH*0.35)+'" x2="'+(pX+bW)+'" y2="'+(pT+bH*0.35)+'" stroke="#d5d0c5" stroke-dasharray="4,4"/>';
-  s += '<line x1="'+pX+'" y1="'+(pT+bH*0.65)+'" x2="'+(pX+bW)+'" y2="'+(pT+bH*0.65)+'" stroke="#d5d0c5" stroke-dasharray="4,4"/>';
-
-  // Plants
-  s += pc(backRow, bY, bH*0.3); s += pc(midRow, mY, bH*0.3); s += pc(frontRow, fY, bH*0.3);
-
-  // Title with shape info
+  // Title and dimensions
   s += '<text x="'+(W/2)+'" y="20" text-anchor="middle" font-size="14" font-weight="600" fill="#333">Planteringsplan '+lengthM+'m x '+widthM+'m</text>';
-  s += '<text x="'+(W/2)+'" y="36" text-anchor="middle" font-size="10" fill="#888">'+(shapeLabels[bedShape] || "Rabatt")+' · Höga bak → Låga fram</text>';
-
-  // Dimension
+  s += '<text x="'+(W/2)+'" y="36" text-anchor="middle" font-size="10" fill="#888">'+(shapeLabels[bedShape] || "Rabatt")+' · Höga bak \u2192 Låga fram</text>';
   s += '<text x="'+(W/2)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#aaa">'+lengthM+' m</text>';
   s += '<line x1="'+pX+'" y1="'+(H-16)+'" x2="'+(pX+bW)+'" y2="'+(H-16)+'" stroke="#ccc" stroke-width="0.5"/>';
-
   s += '</svg>';
   return s;
 }
