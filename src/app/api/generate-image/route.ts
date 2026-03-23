@@ -244,15 +244,15 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
       const cx=pX+slotW*i+slotW/2+(rand()-0.5)*slotW*0.15;
       const cy=rowCy+(rand()-0.5)*zoneH*0.3;
       // Drift size based on quantity
-      const dw=Math.min(slotW*0.85, 35+qty*5);
-      const dh=Math.min(zoneH*0.7, 25+qty*3.5);
+      const dw=Math.min(slotW*1.1, 50+qty*7);
+      const dh=Math.min(zoneH*0.95, 40+qty*5);
       drifts.push({name:plant.name,cx,cy,w:dw,h:dh,color,qty,hcm:plant.height_cm});
       // Secondary drift for larger groups (Oudolf repeat)
       if(qty>=6&&count<cols) {
         const cx2=cx+(rand()>0.5?slotW*0.5:-slotW*0.5);
         const cy2=cy+(rand()-0.5)*zoneH*0.4;
         if(pointInBed(cx2,cy2)) {
-          drifts.push({name:plant.name,cx:cx2,cy:cy2,w:dw*0.5,h:dh*0.5,color,qty:Math.ceil(qty*0.3),hcm:plant.height_cm});
+          drifts.push({name:plant.name,cx:cx2,cy:cy2,w:dw*0.65,h:dh*0.65,color,qty:Math.ceil(qty*0.4),hcm:plant.height_cm});
         }
       }
     });
@@ -270,7 +270,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   s+='<path d="'+getBedPath()+'" fill="#eae7de" stroke="#c5c0b0" stroke-width="1.5" stroke-dasharray="6,3"/>';
 
   // Matrix grass fill
-  for(let i=0;i<100;i++){const gx=pX+10+rand()*(bW-20),gy=pT+8+rand()*(bH-16);if(pointInBed(gx,gy)){s+='<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+(gx+(rand()-0.5)*2).toFixed(1)+'" y2="'+(gy-3-rand()*5).toFixed(1)+'" stroke="#c5cdb5" stroke-width="0.6" stroke-opacity="0.3"/>';}}
+  for(let i=0;i<150;i++){const gx=pX+10+rand()*(bW-20),gy=pT+8+rand()*(bH-16);if(pointInBed(gx,gy)){s+='<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+(gx+(rand()-0.5)*2).toFixed(1)+'" y2="'+(gy-3-rand()*5).toFixed(1)+'" stroke="#c5cdb5" stroke-width="0.6" stroke-opacity="0.3"/>';}}
 
   // Draw drifts back to front
   const sd=[...drifts].sort((a,b)=>a.cy-b.cy);
@@ -278,7 +278,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     const op = d.qty >= 5 ? 0.5 : 0.4;
     s+='<path d="'+driftBlob(d.cx,d.cy,d.w,d.h)+'" fill="'+d.color+'" fill-opacity="'+op+'" stroke="'+d.color+'" stroke-opacity="0.3" stroke-width="0.8"/>';
     // Dots inside drift
-    const dots=Math.min(d.qty,14);
+    const dots=Math.min(d.qty+4,18);
     for(let i=0;i<dots;i++){
       const a=rand()*Math.PI*2,dist=rand()*0.32;
       const dx=d.cx+Math.cos(a)*d.w*dist,dy=d.cy+Math.sin(a)*d.h*dist,dr=2.5+rand()*3;
