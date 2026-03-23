@@ -290,13 +290,13 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     const totalPlants = row.reduce((s: number, p: any) => s + Math.min(p.quantity, 12), 0);
     const baseR = Math.min(22, Math.max(8, bW / (totalPlants + 2) / 2));
     
-    let curX = pX + 20;
-    row.forEach((p: any) => {
+    const spacing = bW / (row.length + 1);
+    row.forEach((p: any, idx: number) => {
       const qty = Math.min(p.quantity, 12);
       const r = Math.min(baseR + 2, Math.max(8, p.height_cm / 6));
       const f = cM[p.color] || "#6aaa5a";
       const clusterW = r * 2 * Math.ceil(Math.sqrt(qty));
-      const groupCx = curX + clusterW / 2;
+      const groupCx = pX + spacing * (idx + 1);
       
       // Pack circles in a tight organic cluster
       for (let q = 0; q < qty; q++) {
@@ -312,7 +312,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
       o += "<text x=\""+groupCx.toFixed(1)+"\" y=\""+(yC + r * 2 + 12).toFixed(1)+"\" text-anchor=\"middle\" font-size=\"8\" font-weight=\"500\" fill=\"#444\">"+p.name+"</text>";
       o += "<text x=\""+groupCx.toFixed(1)+"\" y=\""+(yC + r * 2 + 21).toFixed(1)+"\" text-anchor=\"middle\" font-size=\"7\" fill=\"#888\">"+p.quantity+"st</text>";
       
-      curX += clusterW + 12;
+      // evenly spaced
     });
     return o;
   }
