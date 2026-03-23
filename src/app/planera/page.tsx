@@ -89,7 +89,7 @@ export default function PlaneraPage() {
       "\n- Stil: " + styleName + " - " + styleDesc + "\n- Zon: 3-4 (Mellansverige)\n\n" +
       "Svara ENDAST med JSON (ingen markdown, inga backticks). Formatet:\n" +
       '{"title":"Namn","description":"2-3 meningar","plants":[{"name":"Svenskt namn","latin":"Latinskt namn","quantity":7,"position":"Bakre raden","height_cm":80,"color":"Lila","bloom_period":"Juni-Aug","care":"Lätt"}],"tips":"2-3 odlingstips"}\n\n' +
-      "Välj 8-12 sorter. VIKTIGT: Ange realistiska kvantiteter för ytan! En rabatt på 3x1.5m behöver ca 35-50 plantor totalt. Höga perenner (bak): 3-5 st per sort. Mellanstora (mitt): 5-7 st per sort. Låga kantväxter (fram): 5-8 st per sort. Plantera i grupper om minst 3 för naturligt utseende. Ska passa svenska förhållanden, ge blomning maj-sept, ha varierande höjder och färgharmoni.";
+      "Välj 8-12 sorter. VIKTIGT: Ange realistiska kvantiteter för ytan! En rabatt på 3x1.5m behöver ca 35-50 plantor totalt. Höga perenner (bak): 5-7 st per sort. Mellanstora (mitt): 7-10 st per sort. Låga kantväxter (fram): 8-12 st per sort. Plantera i grupper om minst 3 för naturligt utseende. Ska passa svenska förhållanden, ge blomning maj-sept, ha varierande höjder och färgharmoni.";
 
     try {
       const response = await fetch("/api/generate-plan", {

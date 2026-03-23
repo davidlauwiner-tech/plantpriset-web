@@ -286,26 +286,26 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   function pc(row: any[], yC: number, rowH: number): string {
     if (!row.length) return "";
     let o = "";
-    // Calculate total plants in this row for spacing
-    const totalPlants = row.reduce((s: number, p: any) => s + Math.min(p.quantity, 12), 0);
-    const baseR = Math.min(22, Math.max(8, bW / (totalPlants + 2) / 2));
+    // Calculate circle size to fill the row densely
+    const totalPlants = row.reduce((s: number, p: any) => s + Math.min(p.quantity, 15), 0);
+    const baseR = Math.min(26, Math.max(10, bW / (totalPlants + 1) / 1.4));
     
     const spacing = bW / (row.length + 1);
     row.forEach((p: any, idx: number) => {
-      const qty = Math.min(p.quantity, 12);
+      const qty = Math.min(p.quantity, 15);
       const r = Math.min(baseR + 2, Math.max(8, p.height_cm / 6));
       const f = cM[p.color] || "#6aaa5a";
       const clusterW = r * 2 * Math.ceil(Math.sqrt(qty));
       const groupCx = pX + spacing * (idx + 1);
       
-      // Pack circles in a tight organic cluster
+      // Pack circles in a dense organic cluster that fills the space
       for (let q = 0; q < qty; q++) {
-        const angle = (q / qty) * Math.PI * 2 + (Math.random() * 0.3);
-        const ring = q < 1 ? 0 : Math.ceil(q / 5);
-        const dist = ring * r * 1.1;
-        const cx = groupCx + Math.cos(angle) * dist + (Math.random() - 0.5) * r * 0.4;
-        const cy = yC + Math.sin(angle) * dist + (Math.random() - 0.5) * r * 0.4;
-        const cr = r * (0.7 + Math.random() * 0.4);
+        const angle = (q / qty) * Math.PI * 2 + (q * 0.8);
+        const ring = q < 1 ? 0 : Math.ceil(q / 4);
+        const dist = ring * r * 0.95;
+        const cx = groupCx + Math.cos(angle) * dist + (Math.random() - 0.5) * r * 0.5;
+        const cy = yC + Math.sin(angle) * dist * 1.3 + (Math.random() - 0.5) * r * 0.6;
+        const cr = r * (0.85 + Math.random() * 0.3);
         o += "<circle cx=\""+cx.toFixed(1)+"\" cy=\""+cy.toFixed(1)+"\" r=\""+cr.toFixed(1)+"\" fill=\""+f+"\" fill-opacity=\""+(0.5 + Math.random()*0.3).toFixed(2)+"\" stroke=\""+f+"\" stroke-width=\"0.8\"/>";
       }
       // Label
