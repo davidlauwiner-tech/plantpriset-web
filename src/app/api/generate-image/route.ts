@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     let imageUrl: string | undefined;
     let editDebug: any = null;
     let bedShape = "rectangle";
+    let bedOutline: number[][] | null = null;
 
     if (photoBuffer) {
       // Step 1: GPT-4o analyzes photo for bed shape
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
               role: "user",
               content: [
                 { type: "image_url", image_url: { url: "data:image/jpeg;base64," + photoBase64, detail: "low" } },
-                { type: "text", text: "Look at this garden photo. Describe the shape of the planting bed or planting area. Respond ONLY with a JSON object like: {\"shape\": \"kidney\", \"description\": \"The bed curves gently inward on the left side, forming a kidney shape roughly 3m x 1.5m\"}\n\nPossible shapes: rectangle, kidney, L-shaped, curved, triangular, circular, oval, irregular, narrow-strip. Pick the closest match. Be specific about which sides curve or angle." }
+                { type: "text", text: "Look at this garden photo. Identify the planting bed or planting area.\n\n1. Pick the closest shape: rectangle, kidney, L-shaped, curved, triangular, circular, oval, irregular, narrow-strip\n2. Trace the outline of the bed as 8-12 points on a normalized 0-100 coordinate grid (top-left = 0,0, bottom-right = 100,100)\n\nRespond ONLY with JSON:\n{\"shape\": \"irregular\", \"description\": \"Brief description\", \"outline\": [[10,15],[40,5],[80,10],[95,30],[90,70],[70,95],[30,90],[5,60]]}" }
               ]
             }]
           }),
@@ -84,6 +85,9 @@ export async function POST(request: Request) {
           const clean = visionText.replace(/```json|```/g, "").trim();
           const parsed = JSON.parse(clean);
           bedShape = parsed.shape || "rectangle";
+          if (parsed.outline && Array.isArray(parsed.outline)) {
+            bedOutline = parsed.outline;
+          }
         } catch { bedShape = "irregular"; }
       } catch (e) { console.log("Vision shape detection failed:", e); }
 
@@ -136,9 +140,9 @@ export async function POST(request: Request) {
     }
 
     // Generate SVG planting diagram with detected shape
-    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape);
+    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline);
 
-    return NextResponse.json({ imageUrl, diagram, editDebug, bedShape });
+    return NextResponse.json({ imageUrl, diagram, editDebug, bedShape, bedOutline });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -177,7 +181,7 @@ async function generateWithDalle3(
   return data.data?.[0]?.url;
 }
 
-function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string): string {
+function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null): string {
   const sorted = [...plants].sort((a, b) => b.height_cm - a.height_cm);
   const backRow = sorted.filter(p => p.height_cm > 60);
   const midRow = sorted.filter(p => p.height_cm >= 25 && p.height_cm <= 60);
@@ -197,6 +201,21 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   function bedPath(): string {
     const x = pX, y = pT, w = bW, h = bH;
     const r = 16;
+    // Use custom outline from GPT-4o vision if available
+    if (bedOutline && bedOutline.length >= 4) {
+      const pts = bedOutline.map(([px, py]) => [x + (px / 100) * w, y + (py / 100) * h]);
+      let d = "M" + pts[0][0] + "," + pts[0][1];
+      for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const curr = pts[i];
+        const next = pts[(i + 1) % pts.length];
+        const cpx = curr[0] + (next[0] - prev[0]) * 0.15;
+        const cpy = curr[1] + (next[1] - prev[1]) * 0.15;
+        d += " Q" + cpx + "," + cpy + " " + curr[0] + "," + curr[1];
+      }
+      d += " Z";
+      return d;
+    }
     switch (bedShape) {
       case "kidney":
         return "M" + (x+r) + "," + y +
