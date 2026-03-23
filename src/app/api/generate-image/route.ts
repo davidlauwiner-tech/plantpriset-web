@@ -283,23 +283,36 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     }
   }
 
-  function pc(row: any[], yC: number): string {
+  function pc(row: any[], yC: number, rowH: number): string {
     if (!row.length) return "";
     let o = "";
-    const sp = bW / (row.length + 1);
-    row.forEach((p: any, i: number) => {
-      const cx = pX + sp * (i + 1), cy = yC;
-      const r = Math.min(28, Math.max(14, p.height_cm / 4));
+    // Calculate total plants in this row for spacing
+    const totalPlants = row.reduce((s: number, p: any) => s + Math.min(p.quantity, 12), 0);
+    const baseR = Math.min(22, Math.max(8, bW / (totalPlants + 2) / 2));
+    
+    let curX = pX + 20;
+    row.forEach((p: any) => {
+      const qty = Math.min(p.quantity, 12);
+      const r = Math.min(baseR + 2, Math.max(8, p.height_cm / 6));
       const f = cM[p.color] || "#6aaa5a";
-      o += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+f+'" fill-opacity="0.7" stroke="'+f+'" stroke-width="1.5"/>';
-      if (p.quantity > 1) {
-        for (let q = 1; q < Math.min(p.quantity, 4); q++) {
-          const ox = cx + (q%2===0?-1:1)*(r*0.7), oy = cy + (q>1?-r*0.5:r*0.5);
-          o += '<circle cx="'+ox+'" cy="'+oy+'" r="'+(r*0.6)+'" fill="'+f+'" fill-opacity="0.4"/>';
-        }
+      const clusterW = r * 2 * Math.ceil(Math.sqrt(qty));
+      const groupCx = curX + clusterW / 2;
+      
+      // Pack circles in a tight organic cluster
+      for (let q = 0; q < qty; q++) {
+        const angle = (q / qty) * Math.PI * 2 + (Math.random() * 0.3);
+        const ring = q < 1 ? 0 : Math.ceil(q / 5);
+        const dist = ring * r * 1.1;
+        const cx = groupCx + Math.cos(angle) * dist + (Math.random() - 0.5) * r * 0.4;
+        const cy = yC + Math.sin(angle) * dist + (Math.random() - 0.5) * r * 0.4;
+        const cr = r * (0.7 + Math.random() * 0.4);
+        o += "<circle cx=\""+cx.toFixed(1)+"\" cy=\""+cy.toFixed(1)+"\" r=\""+cr.toFixed(1)+"\" fill=\""+f+"\" fill-opacity=\""+(0.5 + Math.random()*0.3).toFixed(2)+"\" stroke=\""+f+"\" stroke-width=\"0.8\"/>";
       }
-      o += '<text x="'+cx+'" y="'+(cy+r+14)+'" text-anchor="middle" font-size="9" fill="#444">'+p.name+'</text>';
-      o += '<text x="'+cx+'" y="'+(cy+r+24)+'" text-anchor="middle" font-size="8" fill="#888">'+p.height_cm+'cm · '+p.quantity+'st</text>';
+      // Label
+      o += "<text x=\""+groupCx.toFixed(1)+"\" y=\""+(yC + r * 2 + 12).toFixed(1)+"\" text-anchor=\"middle\" font-size=\"8\" font-weight=\"500\" fill=\"#444\">"+p.name+"</text>";
+      o += "<text x=\""+groupCx.toFixed(1)+"\" y=\""+(yC + r * 2 + 21).toFixed(1)+"\" text-anchor=\"middle\" font-size=\"7\" fill=\"#888\">"+p.quantity+"st</text>";
+      
+      curX += clusterW + 12;
     });
     return o;
   }
@@ -328,7 +341,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   s += '<line x1="'+pX+'" y1="'+(pT+bH*0.65)+'" x2="'+(pX+bW)+'" y2="'+(pT+bH*0.65)+'" stroke="#d5d0c5" stroke-dasharray="4,4"/>';
 
   // Plants
-  s += pc(backRow, bY); s += pc(midRow, mY); s += pc(frontRow, fY);
+  s += pc(backRow, bY, bH*0.3); s += pc(midRow, mY, bH*0.3); s += pc(frontRow, fY, bH*0.3);
 
   // Title with shape info
   s += '<text x="'+(W/2)+'" y="20" text-anchor="middle" font-size="14" font-weight="600" fill="#333">Planteringsplan '+lengthM+'m x '+widthM+'m</text>';
