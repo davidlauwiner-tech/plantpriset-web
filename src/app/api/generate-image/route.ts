@@ -202,15 +202,17 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   });
   if(frontP.length===0&&midP.length>1)frontP.push(midP.pop()!);
   if(midP.length===0&&backP.length>2)midP.push(backP.pop()!);
+  if(midP.length<2&&backP.length>2)midP.push(backP.pop()!);
+  if(midP.length<2&&frontP.length>2)midP.unshift(frontP.shift()!);
 
   // Place exact quantities in rows
   // Each row gets a horizontal band; within each band, species are placed as groups
   interface Placed{x:number;y:number;r:number;species:number;}
   const placed:Placed[]=[];
   const rowBands=[
-    {plants:backP, yStart:bedY+15, yEnd:bedY+bedH*0.33},
-    {plants:midP, yStart:bedY+bedH*0.33, yEnd:bedY+bedH*0.66},
-    {plants:frontP, yStart:bedY+bedH*0.66, yEnd:bedY+bedH-15}
+    {plants:backP, yStart:bedY+25, yEnd:bedY+bedH*0.35},
+    {plants:midP, yStart:bedY+bedH*0.35, yEnd:bedY+bedH*0.65},
+    {plants:frontP, yStart:bedY+bedH*0.65, yEnd:bedY+bedH-25}
   ];
 
   for(const band of rowBands){
