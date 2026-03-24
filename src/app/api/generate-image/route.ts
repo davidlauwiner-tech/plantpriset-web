@@ -209,7 +209,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   const totalClusters=species.reduce((s,sp)=>s+sp.qty,0);
   // Circle size: fill the bed with totalClusters circles
   // Area of bed / totalClusters = area per circle
-  const bedArea=bedW*bedH*0.95; // ~75% usable inside outline
+  const bedArea=bedW*bedH*1.3; // ~75% usable inside outline
   const areaPerCircle=bedArea/Math.max(totalClusters,1);
   const baseR=Math.min(Math.sqrt(areaPerCircle/Math.PI),bedH/5,55);
 
@@ -241,7 +241,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
             const d=Math.sqrt((cx-p.x)**2+(cy-p.y)**2);
             const minD=r+p.r;
             const overlap=minD-d;
-            if(overlap>r*0.7)score-=overlap*8; // too much overlap
+            if(overlap>r*0.85)score-=overlap*6; // too much overlap
             else if(overlap>-8)score+=20; // touching = ideal
             else if(d>minD*1.8)score-=2; // too far
           }
