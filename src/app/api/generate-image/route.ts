@@ -276,7 +276,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   // Dimension
   s+='<line x1="'+bedX+'" y1="'+(H-10)+'" x2="'+(bedX+bedW)+'" y2="'+(H-10)+'" stroke="#bbb" stroke-width="0.8"/>';
   s+='<text x="'+(bedX+bedW/2)+'" y="'+(H-1)+'" text-anchor="middle" font-size="10" fill="#aaa">\u2190 '+lengthM+' m \u2192</text>';
-  s+='<text x="'+(bedX+bedW)+'" y="'+(H-1)+'" text-anchor="end" font-size="9" fill="#bbb">'+totalClusters+' grupper</text>';
+  s+='<text x="'+(bedX+bedW)+'" y="'+(H-1)+'" text-anchor="end" font-size="9" fill="#bbb">'+totalClusters+' plantor</text>';
 
   // Legend
   const legX=bedX+bedW+25,legY=bedY-5;
@@ -287,7 +287,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     s+='<circle cx="'+(legX+12)+'" cy="'+(y+2)+'" r="10" fill="'+sp.color+'" fill-opacity="0.25" stroke="'+sp.color+'" stroke-width="1.5"/>';
     s+='<text x="'+(legX+12)+'" y="'+(y+6)+'" text-anchor="middle" font-size="10" font-weight="800" fill="#555">'+sp.num+'</text>';
     s+='<text x="'+(legX+28)+'" y="'+(y)+'" font-size="9.5" font-weight="600" fill="#333">'+sp.name+'</text>';
-    s+='<text x="'+(legX+28)+'" y="'+(y+12)+'" font-size="8" fill="#888">'+sp.qty+' grupper \u00b7 '+sp.hcm+'cm</text>';
+    s+='<text x="'+(legX+28)+'" y="'+(y+12)+'" font-size="8" fill="#888">'+sp.qty+' st \u00b7 '+sp.hcm+'cm</text>';
   });
 
   s+='</svg>';
