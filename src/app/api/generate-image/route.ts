@@ -244,15 +244,15 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
       const cx=pX+slotW*i+slotW/2+(rand()-0.5)*slotW*0.15;
       const cy=rowCy+(rand()-0.5)*zoneH*0.3;
       // Drift size based on quantity
-      const dw=Math.min(slotW*1.1, 50+qty*7);
-      const dh=Math.min(zoneH*0.95, 40+qty*5);
+      const dw=slotW*1.2;
+      const dh=zoneH*1.0;
       drifts.push({name:plant.name,cx,cy,w:dw,h:dh,color,qty,hcm:plant.height_cm});
       // Secondary drift for larger groups (Oudolf repeat)
-      if(qty>=6&&count<cols) {
+      if(qty>=4) {
         const cx2=cx+(rand()>0.5?slotW*0.5:-slotW*0.5);
         const cy2=cy+(rand()-0.5)*zoneH*0.4;
         if(pointInBed(cx2,cy2)) {
-          drifts.push({name:plant.name,cx:cx2,cy:cy2,w:dw*0.65,h:dh*0.65,color,qty:Math.ceil(qty*0.4),hcm:plant.height_cm});
+          drifts.push({name:plant.name,cx:cx2,cy:cy2,w:dw*0.75,h:dh*0.75,color,qty:Math.ceil(qty*0.4),hcm:plant.height_cm});
         }
       }
     });
@@ -275,10 +275,10 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   // Draw drifts back to front
   const sd=[...drifts].sort((a,b)=>a.cy-b.cy);
   for(const d of sd) {
-    const op = d.qty >= 5 ? 0.5 : 0.4;
+    const op = d.qty >= 5 ? 0.55 : 0.45;
     s+='<path d="'+driftBlob(d.cx,d.cy,d.w,d.h)+'" fill="'+d.color+'" fill-opacity="'+op+'" stroke="'+d.color+'" stroke-opacity="0.3" stroke-width="0.8"/>';
     // Dots inside drift
-    const dots=Math.min(d.qty+4,18);
+    const dots=Math.min(d.qty+6,22);
     for(let i=0;i<dots;i++){
       const a=rand()*Math.PI*2,dist=rand()*0.32;
       const dx=d.cx+Math.cos(a)*d.w*dist,dy=d.cy+Math.sin(a)*d.h*dist,dr=2.5+rand()*3;
