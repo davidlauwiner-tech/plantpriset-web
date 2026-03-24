@@ -182,147 +182,44 @@ async function generateWithDalle3(
 }
 
 function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null): string {
-  const W = 700, H = 440, pX = 60, pT = 55, bW = W - pX * 2, bH = H - pT - 65;
-
-  const cM: Record<string,string> = {
-    "Lila":"#9b6bae","Violett":"#8b5fa3","Rosa":"#d4829a","Pink":"#e07090",
-    "Vit":"#d8d8c8","Vitt":"#d8d8c8","Blå":"#6b8fc0","Gul":"#d4b840",
-    "Röd":"#c85050","Orange":"#d49040","Grön":"#6aaa5a"
-  };
-
-  // Seeded random for consistent layout
-  let seed = 42;
-  function rand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
-
-  // Bed boundary path
-  function getBedPath(): string {
-    const x = pX, y = pT, w = bW, h = bH, r = 16;
-    if (bedOutline && bedOutline.length >= 4) {
-      const pts = bedOutline.map(([px, py]: number[]) => [x + (px / 100) * w, y + (py / 100) * h]);
-      let d = "M" + pts[0][0].toFixed(1) + "," + pts[0][1].toFixed(1);
-      for (let i = 1; i < pts.length; i++) {
-        const prev = pts[i - 1];
-        const curr = pts[i];
-        const next = pts[(i + 1) % pts.length];
-        const cpx = curr[0] + (next[0] - prev[0]) * 0.15;
-        const cpy = curr[1] + (next[1] - prev[1]) * 0.15;
-        d += " Q" + cpx.toFixed(1) + "," + cpy.toFixed(1) + " " + curr[0].toFixed(1) + "," + curr[1].toFixed(1);
-      }
-      return d + " Z";
-    }
-    return "M"+(x+r)+","+y+" L"+(x+w-r)+","+y+" Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+" L"+(x+w)+","+(y+h-r)+" Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+" L"+(x+r)+","+(y+h)+" Q"+x+","+(y+h)+" "+x+","+(y+h-r)+" L"+x+","+(y+r)+" Q"+x+","+y+" "+(x+r)+","+y+" Z";
-  }
-
-  // Point-in-polygon (ray casting)
-  function pointInBed(px: number, py: number): boolean {
-    if (bedOutline && bedOutline.length >= 4) {
-      const pts = bedOutline.map(([bx, by]: number[]) => [pX + (bx / 100) * bW, pT + (by / 100) * bH]);
-      let inside = false;
-      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-        const [xi, yi] = pts[i], [xj, yj] = pts[j];
-        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
-      }
-      return inside;
-    }
-    return px > pX + 8 && px < pX + bW - 8 && py > pT + 8 && py < pT + bH - 8;
-  }
-
-  // Sort: tallest first (go in back/top of diagram)
-  const sorted = [...plants].sort((a: any, b: any) => b.height_cm - a.height_cm);
-
-  interface PlantCircle { x: number; y: number; r: number; color: string; name: string; species: number; }
-  const placed: PlantCircle[] = [];
-  const speciesInfo: { name: string; color: string; count: number; cx: number; cy: number }[] = [];
-  const maxH = Math.max(...sorted.map((p: any) => p.height_cm), 150);
-
-  sorted.forEach((plant: any, si: number) => {
-    const qty = Math.min(plant.quantity || 3, 15);
-    const baseR = 8 + (plant.height_cm / maxH) * 16;
-    const color = cM[plant.color] || "#6aaa5a";
-    const heightRatio = plant.height_cm / maxH;
-    const targetY = pT + bH * (0.15 + (1 - heightRatio) * 0.7);
-
-    let groupCx = 0, groupCy = 0, groupN = 0;
-
-    for (let q = 0; q < qty; q++) {
-      let bestX = 0, bestY = 0, bestScore = -Infinity;
-
-      for (let attempt = 0; attempt < 80; attempt++) {
-        let cx: number, cy: number;
-        if (q === 0) {
-          cx = pX + 30 + rand() * (bW - 60);
-          cy = targetY + (rand() - 0.5) * bH * 0.25;
-        } else {
-          const prev = placed.filter(p => p.species === si);
-          const avgX = prev.reduce((s, p) => s + p.x, 0) / prev.length;
-          const avgY = prev.reduce((s, p) => s + p.y, 0) / prev.length;
-          cx = avgX + (rand() - 0.5) * baseR * 4;
-          cy = avgY + (rand() - 0.5) * baseR * 4;
-        }
-
-        if (!pointInBed(cx, cy)) continue;
-
-        let score = 0;
-        score -= Math.abs(cy - targetY) * 0.3;
-
-        for (const p of placed) {
-          const d = Math.sqrt((cx - p.x) ** 2 + (cy - p.y) ** 2);
-          const overlap = (p.r + baseR) - d;
-          if (overlap > baseR * 0.5) score -= overlap * 8;
-          else if (overlap > -2) score += 8; // Touching = ideal
-          else if (d > baseR * 3) score -= 2; // Too far from others
-        }
-
-        const sameSpecies = placed.filter(p => p.species === si);
-        for (const p of sameSpecies) {
-          const d = Math.sqrt((cx - p.x) ** 2 + (cy - p.y) ** 2);
-          if (d < baseR * 3.5) score += 12;
-        }
-
-        if (score > bestScore) { bestScore = score; bestX = cx; bestY = cy; }
-      }
-
-      if (bestScore > -Infinity) {
-        placed.push({ x: bestX, y: bestY, r: baseR * (0.85 + rand() * 0.3), color, name: plant.name, species: si });
-        groupCx += bestX; groupCy += bestY; groupN++;
-      }
-    }
-
-    if (groupN > 0) {
-      speciesInfo.push({ name: plant.name, color, count: groupN, cx: groupCx / groupN, cy: groupCy / groupN });
-    }
-  });
-
-  // Build SVG
-  const shapeLabels: Record<string,string> = {
-    rectangle: "Rektangulär rabatt", kidney: "Njurformad rabatt", oval: "Oval rabatt",
-    circular: "Rund rabatt", curved: "Svängd rabatt", "L-shaped": "L-formad rabatt",
-    triangular: "Triangulär rabatt", "narrow-strip": "Smal remsa", irregular: "Friform rabatt"
-  };
-
-  let s = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
-  s += '<rect width="100%" height="100%" fill="#fafaf5"/>';
-  s += '<path d="'+getBedPath()+'" fill="#f0ede4" stroke="#c5c0b0" stroke-width="1.5" stroke-dasharray="6,3"/>';
-
-  // Draw circles sorted by Y (back to front for natural overlap)
-  const sortedPlaced = [...placed].sort((a, b) => a.y - b.y);
-  for (const p of sortedPlaced) {
-    const op = (0.45 + rand() * 0.25).toFixed(2);
-    s += '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+p.r.toFixed(1)+'" fill="'+p.color+'" fill-opacity="'+op+'" stroke="'+p.color+'" stroke-opacity="0.6" stroke-width="0.8"/>';
-  }
-
-  // Species labels
-  for (const sp of speciesInfo) {
-    const ly = sp.cy + 22;
-    s += '<text x="'+sp.cx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle" font-size="8" font-weight="600" fill="#444">'+sp.name+'</text>';
-    s += '<text x="'+sp.cx.toFixed(1)+'" y="'+(ly+10).toFixed(1)+'" text-anchor="middle" font-size="7" fill="#888">'+sp.count+'st</text>';
-  }
-
-  // Title and dimensions
-  s += '<text x="'+(W/2)+'" y="20" text-anchor="middle" font-size="14" font-weight="600" fill="#333">Planteringsplan '+lengthM+'m x '+widthM+'m</text>';
-  s += '<text x="'+(W/2)+'" y="36" text-anchor="middle" font-size="10" fill="#888">'+(shapeLabels[bedShape] || "Rabatt")+' · Höga bak \u2192 Låga fram</text>';
-  s += '<text x="'+(W/2)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#aaa">'+lengthM+' m</text>';
-  s += '<line x1="'+pX+'" y1="'+(H-16)+'" x2="'+(pX+bW)+'" y2="'+(H-16)+'" stroke="#ccc" stroke-width="0.5"/>';
-  s += '</svg>';
+  const W=780,H=500,legendW=185;
+  const bedX=12,bedY=55,bedW=W-legendW-30,bedH=H-bedY-40;
+  const cM:Record<string,string>={"Lila":"#b088c0","Violett":"#9070a8","Rosa":"#e0a0b0","Pink":"#e08098","Vit":"#d5d5c5","Vitt":"#d5d5c5","Bl\u00e5":"#88aad0","Gul":"#d8c050","R\u00f6d":"#d06060","Orange":"#d8a050","Gr\u00f6n":"#80b870"};
+  function getBedPath():string{const x=bedX,y=bedY,w=bedW,h=bedH,r=20;if(bedOutline&&bedOutline.length>=4){const pts=bedOutline.map(([px,py]:number[])=>[x+(px/100)*w,y+(py/100)*h]);let d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);for(let i=1;i<pts.length;i++){const p=pts[i-1],c=pts[i],n=pts[(i+1)%pts.length];d+=" Q"+(c[0]+(n[0]-p[0])*0.15).toFixed(1)+","+(c[1]+(n[1]-p[1])*0.15).toFixed(1)+" "+c[0].toFixed(1)+","+c[1].toFixed(1);}return d+" Z";}return "M"+(x+r)+","+y+" L"+(x+w-r)+","+y+" Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+" L"+(x+w)+","+(y+h-r)+" Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+" L"+(x+r)+","+(y+h)+" Q"+x+","+(y+h)+" "+x+","+(y+h-r)+" L"+x+","+(y+r)+" Q"+x+","+y+" "+(x+r)+","+y+" Z";}
+  function pointInBed(px:number,py:number):boolean{if(bedOutline&&bedOutline.length>=4){const pts=bedOutline.map(([bx,by]:number[])=>[bedX+(bx/100)*bedW,bedY+(by/100)*bedH]);let ins=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const[xi,yi]=pts[i],[xj,yj]=pts[j];if((yi>py)!==(yj>py)&&px<((xj-xi)*(py-yi))/(yj-yi)+xi)ins=!ins;}return ins;}return px>bedX+15&&px<bedX+bedW-15&&py>bedY+15&&py<bedY+bedH-15;}
+  const sorted=[...plants].sort((a:any,b:any)=>b.height_cm-a.height_cm);
+  const maxH=Math.max(...sorted.map((p:any)=>p.height_cm),150);
+  interface Sp{num:number;name:string;color:string;qty:number;hcm:number;scm:number;row:number;}
+  const species:Sp[]=[];
+  const rowBuckets:Sp[][]=[[],[],[]];
+  sorted.forEach((p:any,i:number)=>{const row=p.height_cm>60?0:p.height_cm>=25?1:2;const sp:Sp={num:i+1,name:p.name,color:cM[p.color]||"#80b870",qty:Math.min(p.quantity||3,15),hcm:p.height_cm,scm:p.spread_cm||Math.round(p.height_cm*0.6),row};species.push(sp);rowBuckets[row].push(sp);});
+  if(rowBuckets[2].length===0&&rowBuckets[1].length>1)rowBuckets[2].push(rowBuckets[1].pop()!);
+  if(rowBuckets[1].length===0&&rowBuckets[0].length>2)rowBuckets[1].push(rowBuckets[0].pop()!);
+  const cellR=18;const rowSpacing=cellR*1.85;const colSpacing=cellR*2.1;
+  interface Cell{x:number;y:number;row:number;}
+  const cells:Cell[]=[];
+  let rowNum=0;
+  for(let cy=bedY+cellR+8;cy<bedY+bedH-cellR;cy+=rowSpacing){const ri=cy<bedY+bedH*0.33?0:cy<bedY+bedH*0.66?1:2;const off=(rowNum%2)*colSpacing*0.5;for(let cx=bedX+cellR+8+off;cx<bedX+bedW-cellR;cx+=colSpacing){if(pointInBed(cx,cy))cells.push({x:cx,y:cy,row:ri});}rowNum++;}
+  interface Placed{x:number;y:number;species:number;r:number;}
+  const placed:Placed[]=[];
+  function fillRow(rc:Cell[],rs:Sp[]){if(!rs.length||!rc.length)return;const tq=rs.reduce((s,sp)=>s+sp.qty,0);let ci=0;for(const sp of rs){const cc=Math.max(1,Math.round((sp.qty/tq)*rc.length));for(let i=0;i<cc&&ci<rc.length;i++,ci++){const c=rc[ci];placed.push({x:c.x,y:c.y,species:sp.num,r:cellR*(0.6+sp.hcm/maxH*0.5)});}}while(ci<rc.length){const sp=rs[ci%rs.length];const c=rc[ci];placed.push({x:c.x,y:c.y,species:sp.num,r:cellR*(0.6+sp.hcm/maxH*0.5)});ci++;}}
+  fillRow(cells.filter(c=>c.row===0),rowBuckets[0]);
+  fillRow(cells.filter(c=>c.row===1),rowBuckets[1]);
+  fillRow(cells.filter(c=>c.row===2),rowBuckets[2]);
+  const shapeLabels:Record<string,string>={rectangle:"Rektangul\u00e4r rabatt",kidney:"Njurformad rabatt",oval:"Oval rabatt",circular:"Rund rabatt",curved:"Sv\u00e4ngd rabatt","L-shaped":"L-formad rabatt",triangular:"Triangul\u00e4r rabatt","narrow-strip":"Smal remsa",irregular:"Friform rabatt"};
+  let s='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,sans-serif">';
+  s+='<rect width="100%" height="100%" fill="#fafaf5"/>';
+  s+='<text x="'+(bedX+bedW/2)+'" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#333">Planteringsplan '+lengthM+'m \u00d7 '+widthM+'m</text>';
+  s+='<text x="'+(bedX+bedW/2)+'" y="40" text-anchor="middle" font-size="10" fill="#999">'+(shapeLabels[bedShape]||"Rabatt")+' \u00b7 H\u00f6ga bak \u2192 L\u00e5ga fram</text>';
+  s+='<path d="'+getBedPath()+'" fill="#f0ede8" stroke="#b5b0a0" stroke-width="2"/>';
+  const sp2=[...placed].sort((a,b)=>a.y-b.y);
+  for(const p of sp2){const sp=species.find(s=>s.num===p.species)!;s+='<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+p.r.toFixed(1)+'" fill="'+sp.color+'" fill-opacity="0.3" stroke="'+sp.color+'" stroke-width="1.5" stroke-opacity="0.6"/>';s+='<text x="'+p.x.toFixed(1)+'" y="'+(p.y+4).toFixed(1)+'" text-anchor="middle" font-size="'+(p.r>16?12:9)+'" font-weight="700" fill="#555">'+sp.num+'</text>';}
+  s+='<line x1="'+bedX+'" y1="'+(H-12)+'" x2="'+(bedX+bedW)+'" y2="'+(H-12)+'" stroke="#bbb" stroke-width="0.8"/>';
+  s+='<text x="'+(bedX+bedW/2)+'" y="'+(H-2)+'" text-anchor="middle" font-size="10" fill="#aaa">\u2190 '+lengthM+' m \u2192</text>';
+  const legX=bedX+bedW+20,legY=bedY;
+  s+='<text x="'+legX+'" y="'+(legY-5)+'" font-size="11" font-weight="700" fill="#333">V\u00e4xtlista</text>';
+  s+='<line x1="'+legX+'" y1="'+(legY+2)+'" x2="'+(legX+legendW-10)+'" y2="'+(legY+2)+'" stroke="#ddd" stroke-width="0.5"/>';
+  species.forEach((sp,i)=>{const y=legY+18+i*26;s+='<circle cx="'+(legX+10)+'" cy="'+(y+1)+'" r="9" fill="'+sp.color+'" fill-opacity="0.35" stroke="'+sp.color+'" stroke-width="1.2"/>';s+='<text x="'+(legX+10)+'" y="'+(y+5)+'" text-anchor="middle" font-size="9" font-weight="700" fill="#555">'+sp.num+'</text>';s+='<text x="'+(legX+24)+'" y="'+(y+1)+'" font-size="9" font-weight="600" fill="#333">'+sp.name+'</text>';s+='<text x="'+(legX+24)+'" y="'+(y+12)+'" font-size="7.5" fill="#888">'+sp.qty+'st \u00b7 '+sp.hcm+'cm</text>';});
+  s+='</svg>';
   return s;
 }
