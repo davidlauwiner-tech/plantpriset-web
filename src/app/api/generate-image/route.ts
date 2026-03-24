@@ -183,126 +183,146 @@ async function generateWithDalle3(
 
 function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null): string {
   const W = 700, H = 440, pX = 60, pT = 55, bW = W - pX * 2, bH = H - pT - 65;
-  const cM: Record<string,string> = {"Lila":"#9b6bae","Violett":"#8b5fa3","Rosa":"#d4829a","Pink":"#e07090","Vit":"#d8d8c8","Vitt":"#d8d8c8","Bl\u00e5":"#6b8fc0","Gul":"#d4b840","R\u00f6d":"#c85050","Orange":"#d49040","Gr\u00f6n":"#6aaa5a"};
-  let seed = 42;
-  function rand() { seed=(seed*16807)%2147483647; return (seed-1)/2147483646; }
 
+  const cM: Record<string,string> = {
+    "Lila":"#9b6bae","Violett":"#8b5fa3","Rosa":"#d4829a","Pink":"#e07090",
+    "Vit":"#d8d8c8","Vitt":"#d8d8c8","Blå":"#6b8fc0","Gul":"#d4b840",
+    "Röd":"#c85050","Orange":"#d49040","Grön":"#6aaa5a"
+  };
+
+  // Seeded random for consistent layout
+  let seed = 42;
+  function rand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+
+  // Bed boundary path
   function getBedPath(): string {
-    const x=pX,y=pT,w=bW,h=bH,r=16;
+    const x = pX, y = pT, w = bW, h = bH, r = 16;
     if (bedOutline && bedOutline.length >= 4) {
-      const pts=bedOutline.map(([px,py]:number[])=>[x+(px/100)*w,y+(py/100)*h]);
-      let d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);
-      for(let i=1;i<pts.length;i++){const p=pts[i-1],c=pts[i],n=pts[(i+1)%pts.length];d+=" Q"+(c[0]+(n[0]-p[0])*0.15).toFixed(1)+","+(c[1]+(n[1]-p[1])*0.15).toFixed(1)+" "+c[0].toFixed(1)+","+c[1].toFixed(1);}
-      return d+" Z";
+      const pts = bedOutline.map(([px, py]: number[]) => [x + (px / 100) * w, y + (py / 100) * h]);
+      let d = "M" + pts[0][0].toFixed(1) + "," + pts[0][1].toFixed(1);
+      for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const curr = pts[i];
+        const next = pts[(i + 1) % pts.length];
+        const cpx = curr[0] + (next[0] - prev[0]) * 0.15;
+        const cpy = curr[1] + (next[1] - prev[1]) * 0.15;
+        d += " Q" + cpx.toFixed(1) + "," + cpy.toFixed(1) + " " + curr[0].toFixed(1) + "," + curr[1].toFixed(1);
+      }
+      return d + " Z";
     }
     return "M"+(x+r)+","+y+" L"+(x+w-r)+","+y+" Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+" L"+(x+w)+","+(y+h-r)+" Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+" L"+(x+r)+","+(y+h)+" Q"+x+","+(y+h)+" "+x+","+(y+h-r)+" L"+x+","+(y+r)+" Q"+x+","+y+" "+(x+r)+","+y+" Z";
   }
 
-  function pointInBed(px:number,py:number):boolean {
-    if(bedOutline&&bedOutline.length>=4){const pts=bedOutline.map(([bx,by]:number[])=>[pX+(bx/100)*bW,pT+(by/100)*bH]);let ins=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const[xi,yi]=pts[i],[xj,yj]=pts[j];if((yi>py)!==(yj>py)&&px<((xj-xi)*(py-yi))/(yj-yi)+xi)ins=!ins;}return ins;}
-    return px>pX+12&&px<pX+bW-12&&py>pT+12&&py<pT+bH-12;
-  }
-
-  function driftBlob(cx:number,cy:number,w:number,h:number):string {
-    const n=8,pts:number[][]=[];
-    for(let i=0;i<n;i++){const a=(i/n)*Math.PI*2;pts.push([cx+Math.cos(a)*(w/2)*(0.65+rand()*0.5),cy+Math.sin(a)*(h/2)*(0.65+rand()*0.5)]);}
-    let d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);
-    for(let i=1;i<=n;i++){const c=pts[i%n],p=pts[(i-1+n)%n],nx=pts[(i+1)%n];d+=" Q"+(c[0]+(nx[0]-p[0])*0.22).toFixed(1)+","+(c[1]+(nx[1]-p[1])*0.22).toFixed(1)+" "+c[0].toFixed(1)+","+c[1].toFixed(1);}
-    return d+" Z";
-  }
-
-  // Sort: tall first
-  const sorted=[...plants].sort((a:any,b:any)=>b.height_cm-a.height_cm);
-  const maxH=Math.max(...sorted.map((p:any)=>p.height_cm),150);
-
-  // ZONE GRID: divide bed into a 4-col x 3-row grid
-  // Row 0 = back (tall), row 1 = mid, row 2 = front (low)
-  const cols=4, rows=3;
-  const zoneW=bW/cols, zoneH=bH/rows;
-
-  // Assign plants to zones based on height
-  const backPlants=sorted.filter((p:any)=>p.height_cm>60);
-  const midPlants=sorted.filter((p:any)=>p.height_cm>=25&&p.height_cm<=60);
-  const frontPlants=sorted.filter((p:any)=>p.height_cm<25);
-  // Rebalance if needed
-  if(frontPlants.length===0&&midPlants.length>1) frontPlants.push(...midPlants.splice(Math.ceil(midPlants.length/2)));
-  if(midPlants.length===0&&backPlants.length>2) midPlants.push(...backPlants.splice(Math.ceil(backPlants.length/2)));
-
-  interface Drift{name:string;cx:number;cy:number;w:number;h:number;color:string;qty:number;hcm:number;}
-  const drifts:Drift[]=[];
-
-  function placeDrifts(plantList:any[],rowIdx:number) {
-    const rowCy=pT+zoneH*rowIdx+zoneH/2;
-    const count=plantList.length;
-    if(count===0) return;
-    // Spread evenly across columns
-    plantList.forEach((plant:any,i:number)=>{
-      const qty=plant.quantity||5;
-      const color=cM[plant.color]||"#6aaa5a";
-      // Center X for this plant in its column slot
-      const slotW=bW/Math.max(count,1);
-      const cx=pX+slotW*i+slotW/2+(rand()-0.5)*slotW*0.15;
-      const cy=rowCy+(rand()-0.5)*zoneH*0.3;
-      // Drift size based on quantity
-      const dw=slotW*1.2;
-      const dh=zoneH*1.0;
-      drifts.push({name:plant.name,cx,cy,w:dw,h:dh,color,qty,hcm:plant.height_cm});
-      // Secondary drift for larger groups (Oudolf repeat)
-      if(qty>=4) {
-        const cx2=cx+(rand()>0.5?slotW*0.5:-slotW*0.5);
-        const cy2=cy+(rand()-0.5)*zoneH*0.4;
-        if(pointInBed(cx2,cy2)) {
-          drifts.push({name:plant.name,cx:cx2,cy:cy2,w:dw*0.75,h:dh*0.75,color,qty:Math.ceil(qty*0.4),hcm:plant.height_cm});
-        }
+  // Point-in-polygon (ray casting)
+  function pointInBed(px: number, py: number): boolean {
+    if (bedOutline && bedOutline.length >= 4) {
+      const pts = bedOutline.map(([bx, by]: number[]) => [pX + (bx / 100) * bW, pT + (by / 100) * bH]);
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, yi] = pts[i], [xj, yj] = pts[j];
+        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
       }
-    });
-  }
-
-  placeDrifts(backPlants, 0);
-  placeDrifts(midPlants, 1);
-  placeDrifts(frontPlants, 2);
-
-  // SVG
-  const shapeLabels:Record<string,string>={rectangle:"Rektangul\u00e4r rabatt",kidney:"Njurformad rabatt",oval:"Oval rabatt",circular:"Rund rabatt",curved:"Sv\u00e4ngd rabatt","L-shaped":"L-formad rabatt",triangular:"Triangul\u00e4r rabatt","narrow-strip":"Smal remsa",irregular:"Friform rabatt"};
-
-  let s='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
-  s+='<rect width="100%" height="100%" fill="#fafaf5"/>';
-  s+='<path d="'+getBedPath()+'" fill="#eae7de" stroke="#c5c0b0" stroke-width="1.5" stroke-dasharray="6,3"/>';
-
-  // Matrix grass fill
-  for(let i=0;i<150;i++){const gx=pX+10+rand()*(bW-20),gy=pT+8+rand()*(bH-16);if(pointInBed(gx,gy)){s+='<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+(gx+(rand()-0.5)*2).toFixed(1)+'" y2="'+(gy-3-rand()*5).toFixed(1)+'" stroke="#c5cdb5" stroke-width="0.6" stroke-opacity="0.3"/>';}}
-
-  // Draw drifts back to front
-  const sd=[...drifts].sort((a,b)=>a.cy-b.cy);
-  for(const d of sd) {
-    const op = d.qty >= 5 ? 0.55 : 0.45;
-    s+='<path d="'+driftBlob(d.cx,d.cy,d.w,d.h)+'" fill="'+d.color+'" fill-opacity="'+op+'" stroke="'+d.color+'" stroke-opacity="0.3" stroke-width="0.8"/>';
-    // Dots inside drift
-    const dots=Math.min(d.qty+6,22);
-    for(let i=0;i<dots;i++){
-      const a=rand()*Math.PI*2,dist=rand()*0.32;
-      const dx=d.cx+Math.cos(a)*d.w*dist,dy=d.cy+Math.sin(a)*d.h*dist,dr=2.5+rand()*3;
-      s+='<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="'+dr.toFixed(1)+'" fill="'+d.color+'" fill-opacity="'+(0.5+rand()*0.4).toFixed(2)+'" stroke="'+d.color+'" stroke-width="0.4" stroke-opacity="0.4"/>';
+      return inside;
     }
+    return px > pX + 8 && px < pX + bW - 8 && py > pT + 8 && py < pT + bH - 8;
   }
 
-  // Labels (one per species)
-  const labeled=new Set<string>();
-  for(const d of sd){
-    if(labeled.has(d.name)) continue; labeled.add(d.name);
-    const ly=d.cy+d.h/2+10;
-    s+='<text x="'+d.cx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle" font-size="8" font-weight="600" fill="#444">'+d.name+'</text>';
-    const tq=drifts.filter(dd=>dd.name===d.name).reduce((sum,dd)=>sum+dd.qty,0);
-    s+='<text x="'+d.cx.toFixed(1)+'" y="'+(ly+10).toFixed(1)+'" text-anchor="middle" font-size="7" fill="#999">'+tq+'st \u00b7 '+d.hcm+'cm</text>';
+  // Sort: tallest first (go in back/top of diagram)
+  const sorted = [...plants].sort((a: any, b: any) => b.height_cm - a.height_cm);
+
+  interface PlantCircle { x: number; y: number; r: number; color: string; name: string; species: number; }
+  const placed: PlantCircle[] = [];
+  const speciesInfo: { name: string; color: string; count: number; cx: number; cy: number }[] = [];
+  const maxH = Math.max(...sorted.map((p: any) => p.height_cm), 150);
+
+  sorted.forEach((plant: any, si: number) => {
+    const qty = Math.min(plant.quantity || 3, 15);
+    const baseR = 8 + (plant.height_cm / maxH) * 16;
+    const color = cM[plant.color] || "#6aaa5a";
+    const heightRatio = plant.height_cm / maxH;
+    const targetY = pT + bH * (0.15 + (1 - heightRatio) * 0.7);
+
+    let groupCx = 0, groupCy = 0, groupN = 0;
+
+    for (let q = 0; q < qty; q++) {
+      let bestX = 0, bestY = 0, bestScore = -Infinity;
+
+      for (let attempt = 0; attempt < 80; attempt++) {
+        let cx: number, cy: number;
+        if (q === 0) {
+          cx = pX + 30 + rand() * (bW - 60);
+          cy = targetY + (rand() - 0.5) * bH * 0.25;
+        } else {
+          const prev = placed.filter(p => p.species === si);
+          const avgX = prev.reduce((s, p) => s + p.x, 0) / prev.length;
+          const avgY = prev.reduce((s, p) => s + p.y, 0) / prev.length;
+          cx = avgX + (rand() - 0.5) * baseR * 4;
+          cy = avgY + (rand() - 0.5) * baseR * 4;
+        }
+
+        if (!pointInBed(cx, cy)) continue;
+
+        let score = 0;
+        score -= Math.abs(cy - targetY) * 0.3;
+
+        for (const p of placed) {
+          const d = Math.sqrt((cx - p.x) ** 2 + (cy - p.y) ** 2);
+          const overlap = (p.r + baseR) - d;
+          if (overlap > baseR * 0.5) score -= overlap * 8;
+          else if (overlap > -2) score += 8; // Touching = ideal
+          else if (d > baseR * 3) score -= 2; // Too far from others
+        }
+
+        const sameSpecies = placed.filter(p => p.species === si);
+        for (const p of sameSpecies) {
+          const d = Math.sqrt((cx - p.x) ** 2 + (cy - p.y) ** 2);
+          if (d < baseR * 3.5) score += 12;
+        }
+
+        if (score > bestScore) { bestScore = score; bestX = cx; bestY = cy; }
+      }
+
+      if (bestScore > -Infinity) {
+        placed.push({ x: bestX, y: bestY, r: baseR * (0.85 + rand() * 0.3), color, name: plant.name, species: si });
+        groupCx += bestX; groupCy += bestY; groupN++;
+      }
+    }
+
+    if (groupN > 0) {
+      speciesInfo.push({ name: plant.name, color, count: groupN, cx: groupCx / groupN, cy: groupCy / groupN });
+    }
+  });
+
+  // Build SVG
+  const shapeLabels: Record<string,string> = {
+    rectangle: "Rektangulär rabatt", kidney: "Njurformad rabatt", oval: "Oval rabatt",
+    circular: "Rund rabatt", curved: "Svängd rabatt", "L-shaped": "L-formad rabatt",
+    triangular: "Triangulär rabatt", "narrow-strip": "Smal remsa", irregular: "Friform rabatt"
+  };
+
+  let s = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  s += '<rect width="100%" height="100%" fill="#fafaf5"/>';
+  s += '<path d="'+getBedPath()+'" fill="#f0ede4" stroke="#c5c0b0" stroke-width="1.5" stroke-dasharray="6,3"/>';
+
+  // Draw circles sorted by Y (back to front for natural overlap)
+  const sortedPlaced = [...placed].sort((a, b) => a.y - b.y);
+  for (const p of sortedPlaced) {
+    const op = (0.45 + rand() * 0.25).toFixed(2);
+    s += '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+p.r.toFixed(1)+'" fill="'+p.color+'" fill-opacity="'+op+'" stroke="'+p.color+'" stroke-opacity="0.6" stroke-width="0.8"/>';
   }
 
-  // Row hints
-  [["Bak",pT+bH*0.17],["Mitt",pT+bH*0.5],["Fram",pT+bH*0.83]].forEach(([n,y])=>{s+='<text x="'+(pX-8)+'" y="'+(y as number).toFixed(1)+'" text-anchor="end" font-size="9" fill="#bbb" dominant-baseline="middle">'+n+'</text>';});
+  // Species labels
+  for (const sp of speciesInfo) {
+    const ly = sp.cy + 22;
+    s += '<text x="'+sp.cx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle" font-size="8" font-weight="600" fill="#444">'+sp.name+'</text>';
+    s += '<text x="'+sp.cx.toFixed(1)+'" y="'+(ly+10).toFixed(1)+'" text-anchor="middle" font-size="7" fill="#888">'+sp.count+'st</text>';
+  }
 
-  s+='<text x="'+(W/2)+'" y="20" text-anchor="middle" font-size="14" font-weight="600" fill="#333">Planteringsplan '+lengthM+'m x '+widthM+'m</text>';
-  s+='<text x="'+(W/2)+'" y="36" text-anchor="middle" font-size="10" fill="#888">'+(shapeLabels[bedShape]||"Rabatt")+' \u00b7 H\u00f6ga bak \u2192 L\u00e5ga fram</text>';
-  s+='<text x="'+(W/2)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#aaa">'+lengthM+' m</text>';
-  s+='<line x1="'+pX+'" y1="'+(H-16)+'" x2="'+(pX+bW)+'" y2="'+(H-16)+'" stroke="#ccc" stroke-width="0.5"/>';
-  s+='</svg>';
+  // Title and dimensions
+  s += '<text x="'+(W/2)+'" y="20" text-anchor="middle" font-size="14" font-weight="600" fill="#333">Planteringsplan '+lengthM+'m x '+widthM+'m</text>';
+  s += '<text x="'+(W/2)+'" y="36" text-anchor="middle" font-size="10" fill="#888">'+(shapeLabels[bedShape] || "Rabatt")+' · Höga bak \u2192 Låga fram</text>';
+  s += '<text x="'+(W/2)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#aaa">'+lengthM+' m</text>';
+  s += '<line x1="'+pX+'" y1="'+(H-16)+'" x2="'+(pX+bW)+'" y2="'+(H-16)+'" stroke="#ccc" stroke-width="0.5"/>';
+  s += '</svg>';
   return s;
 }
