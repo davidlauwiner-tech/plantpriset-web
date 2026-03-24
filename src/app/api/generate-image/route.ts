@@ -222,15 +222,14 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     // Calculate circle radius based on available space
     const maxR=Math.min(bedW/(totalInRow+1)/2, bandH/2.5, 22);
 
-    let xCursor=bedX+maxR+15;
-    for(const sp of band.plants){
-      // Place this species' circles in a tight group
+    const numSpecies=band.plants.length;
+    const slotW=(bedW-30)/numSpecies;
+    band.plants.forEach((sp,spIdx)=>{
       const cols=Math.ceil(Math.sqrt(sp.qty));
       const rows=Math.ceil(sp.qty/cols);
       const r=Math.min(maxR, maxR*(0.7+sp.hcm/maxH*0.4));
       const spacing=r*2.1;
-      const groupW=cols*spacing;
-      const groupStartX=xCursor;
+      const groupStartX=bedX+15+slotW*spIdx+slotW/2-(cols*spacing)/2;
 
       let placed_count=0;
       for(let row=0;row<rows&&placed_count<sp.qty;row++){
@@ -243,8 +242,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
           placed_count++;
         }
       }
-      xCursor+=groupW+r*1.5;
-    }
+    });
   }
 
   // SVG
