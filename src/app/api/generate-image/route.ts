@@ -91,21 +91,37 @@ export async function POST(request: Request) {
         } catch { bedShape = "irregular"; }
       } catch (e) { console.log("Vision shape detection failed:", e); }
 
-      // Step 2: gpt-image-1 edits the photo with labeled plants
-      const tallPlants = plants.filter((p: any) => p.height_cm > 60).map((p: any) => p.name).join(", ");
-      const midPlants = plants.filter((p: any) => p.height_cm >= 30 && p.height_cm <= 60).map((p: any) => p.name).join(", ");
-      const lowPlants = plants.filter((p: any) => p.height_cm < 30).map((p: any) => p.name).join(", ");
+      // Step 2: gpt-image-1 edits the photo with positioned plants
+      const sorted = [...plants].sort((a: any, b: any) => b.height_cm - a.height_cm);
+      const backP = sorted.filter((p: any) => p.height_cm > 60);
+      const midP = sorted.filter((p: any) => p.height_cm >= 25 && p.height_cm <= 60);
+      const frontP = sorted.filter((p: any) => p.height_cm < 25);
+      if (frontP.length === 0 && midP.length > 1) frontP.push(midP.pop()!);
+      if (midP.length === 0 && backP.length > 2) midP.push(backP.pop()!);
+
+      // Build position descriptions matching the diagram layout
+      function describeRow(row: any[], positions: string[]): string {
+        return row.map((p: any, i: number) => {
+          const pos = positions[Math.min(i, positions.length - 1)];
+          return p.name + " (" + p.quantity + " st, " + p.height_cm + "cm) " + pos;
+        }).join(". ");
+      }
+
+      const backPositions = ["on the far left", "in the center-left", "in the center", "in the center-right", "on the far right"];
+      const midPositions = ["on the left side", "in the center-left", "in the center", "in the center-right", "on the right side"];
+      const frontPositions = ["on the left edge", "in the center-left", "in the center", "in the center-right", "on the right edge"];
+
+      const plantLayout =
+        (backP.length ? "BACK ROW (tallest, against fence/wall): " + describeRow(backP, backPositions) + ". " : "") +
+        (midP.length ? "MIDDLE ROW: " + describeRow(midP, midPositions) + ". " : "") +
+        (frontP.length ? "FRONT ROW (shortest, at the edge): " + describeRow(frontP, frontPositions) + ". " : "");
 
       const editPrompt =
-        "Edit this garden photo to show the planting area filled with beautiful, healthy plants in " +
-        (styleDescriptions[style] || "romantic") + " style. " +
-        "Add these specific plants to the existing garden bed or planting area: " +
-        (tallPlants ? "Tall plants in the back: " + tallPlants + ". " : "") +
-        (midPlants ? "Medium plants in the middle: " + midPlants + ". " : "") +
-        (lowPlants ? "Low plants at the front edge: " + lowPlants + ". " : "") +
-        "Keep the surrounding environment exactly as it is. " +
-        "Only add plants to the garden bed area. " +
-        "Add small, elegant white text labels with each plant name next to each plant, similar to a professional landscape design plan. " +
+        "Edit this garden photo to show a beautiful " + (styleDescriptions[style] || "romantic") + " style planting in the garden bed area. " +
+        "Place these plants in specific positions: " + plantLayout +
+        "IMPORTANT: Keep all surroundings, structures, trees, rocks, and background EXACTLY as they are. " +
+        "Only add plants to the planting bed area. Fill the entire bed with plants, no bare soil visible. " +
+        "Add small, elegant text labels with each plant name. " +
         "The labels should have a subtle semi-transparent dark background for readability. " +
         "The plants should look natural and in full summer bloom. " +
         "Swedish summer daylight. Photorealistic result.";
