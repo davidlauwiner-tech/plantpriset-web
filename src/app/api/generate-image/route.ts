@@ -185,41 +185,99 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   const W=780,H=500,legendW=185;
   const bedX=12,bedY=55,bedW=W-legendW-30,bedH=H-bedY-40;
   const cM:Record<string,string>={"Lila":"#b088c0","Violett":"#9070a8","Rosa":"#e0a0b0","Pink":"#e08098","Vit":"#d5d5c5","Vitt":"#d5d5c5","Bl\u00e5":"#88aad0","Gul":"#d8c050","R\u00f6d":"#d06060","Orange":"#d8a050","Gr\u00f6n":"#80b870"};
+  let seed=42;function rand(){seed=(seed*16807)%2147483647;return(seed-1)/2147483646;}
+
   function getBedPath():string{const x=bedX,y=bedY,w=bedW,h=bedH,r=20;if(bedOutline&&bedOutline.length>=4){const pts=bedOutline.map(([px,py]:number[])=>[x+(px/100)*w,y+(py/100)*h]);let d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);for(let i=1;i<pts.length;i++){const p=pts[i-1],c=pts[i],n=pts[(i+1)%pts.length];d+=" Q"+(c[0]+(n[0]-p[0])*0.15).toFixed(1)+","+(c[1]+(n[1]-p[1])*0.15).toFixed(1)+" "+c[0].toFixed(1)+","+c[1].toFixed(1);}return d+" Z";}return "M"+(x+r)+","+y+" L"+(x+w-r)+","+y+" Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+" L"+(x+w)+","+(y+h-r)+" Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+" L"+(x+r)+","+(y+h)+" Q"+x+","+(y+h)+" "+x+","+(y+h-r)+" L"+x+","+(y+r)+" Q"+x+","+y+" "+(x+r)+","+y+" Z";}
-  function pointInBed(px:number,py:number):boolean{if(bedOutline&&bedOutline.length>=4){const pts=bedOutline.map(([bx,by]:number[])=>[bedX+(bx/100)*bedW,bedY+(by/100)*bedH]);let ins=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const[xi,yi]=pts[i],[xj,yj]=pts[j];if((yi>py)!==(yj>py)&&px<((xj-xi)*(py-yi))/(yj-yi)+xi)ins=!ins;}return ins;}return px>bedX+15&&px<bedX+bedW-15&&py>bedY+15&&py<bedY+bedH-15;}
+
+  // Sort tall first, assign to rows
   const sorted=[...plants].sort((a:any,b:any)=>b.height_cm-a.height_cm);
   const maxH=Math.max(...sorted.map((p:any)=>p.height_cm),150);
-  interface Sp{num:number;name:string;color:string;qty:number;hcm:number;scm:number;row:number;}
+  interface Sp{num:number;name:string;color:string;qty:number;hcm:number;scm:number;}
   const species:Sp[]=[];
-  const rowBuckets:Sp[][]=[[],[],[]];
-  sorted.forEach((p:any,i:number)=>{const row=p.height_cm>60?0:p.height_cm>=25?1:2;const sp:Sp={num:i+1,name:p.name,color:cM[p.color]||"#80b870",qty:Math.min(p.quantity||3,15),hcm:p.height_cm,scm:p.spread_cm||Math.round(p.height_cm*0.6),row};species.push(sp);rowBuckets[row].push(sp);});
-  if(rowBuckets[2].length===0&&rowBuckets[1].length>1)rowBuckets[2].push(rowBuckets[1].pop()!);
-  if(rowBuckets[1].length===0&&rowBuckets[0].length>2)rowBuckets[1].push(rowBuckets[0].pop()!);
-  const cellR=18;const rowSpacing=cellR*1.85;const colSpacing=cellR*2.1;
-  interface Cell{x:number;y:number;row:number;}
-  const cells:Cell[]=[];
-  let rowNum=0;
-  for(let cy=bedY+cellR+8;cy<bedY+bedH-cellR;cy+=rowSpacing){const ri=cy<bedY+bedH*0.33?0:cy<bedY+bedH*0.66?1:2;const off=(rowNum%2)*colSpacing*0.5;for(let cx=bedX+cellR+8+off;cx<bedX+bedW-cellR;cx+=colSpacing){if(pointInBed(cx,cy))cells.push({x:cx,y:cy,row:ri});}rowNum++;}
-  interface Placed{x:number;y:number;species:number;r:number;}
+  const backP:Sp[]=[],midP:Sp[]=[],frontP:Sp[]=[];
+  sorted.forEach((p:any,i:number)=>{
+    const sp:Sp={num:i+1,name:p.name,color:cM[p.color]||"#80b870",qty:p.quantity||3,hcm:p.height_cm,scm:p.spread_cm||Math.round(p.height_cm*0.6)};
+    species.push(sp);
+    if(p.height_cm>60)backP.push(sp);else if(p.height_cm>=25)midP.push(sp);else frontP.push(sp);
+  });
+  if(frontP.length===0&&midP.length>1)frontP.push(midP.pop()!);
+  if(midP.length===0&&backP.length>2)midP.push(backP.pop()!);
+
+  // Place exact quantities in rows
+  // Each row gets a horizontal band; within each band, species are placed as groups
+  interface Placed{x:number;y:number;r:number;species:number;}
   const placed:Placed[]=[];
-  function fillRow(rc:Cell[],rs:Sp[]){if(!rs.length||!rc.length)return;const tq=rs.reduce((s,sp)=>s+sp.qty,0);let ci=0;for(const sp of rs){const cc=Math.max(1,Math.round((sp.qty/tq)*rc.length));for(let i=0;i<cc&&ci<rc.length;i++,ci++){const c=rc[ci];placed.push({x:c.x,y:c.y,species:sp.num,r:cellR*(0.6+sp.hcm/maxH*0.5)});}}while(ci<rc.length){const sp=rs[ci%rs.length];const c=rc[ci];placed.push({x:c.x,y:c.y,species:sp.num,r:cellR*(0.6+sp.hcm/maxH*0.5)});ci++;}}
-  fillRow(cells.filter(c=>c.row===0),rowBuckets[0]);
-  fillRow(cells.filter(c=>c.row===1),rowBuckets[1]);
-  fillRow(cells.filter(c=>c.row===2),rowBuckets[2]);
+  const rowBands=[
+    {plants:backP, yStart:bedY+15, yEnd:bedY+bedH*0.33},
+    {plants:midP, yStart:bedY+bedH*0.33, yEnd:bedY+bedH*0.66},
+    {plants:frontP, yStart:bedY+bedH*0.66, yEnd:bedY+bedH-15}
+  ];
+
+  for(const band of rowBands){
+    if(!band.plants.length)continue;
+    const bandH=band.yEnd-band.yStart;
+    const bandCy=band.yStart+bandH/2;
+    // Total circles in this row
+    const totalInRow=band.plants.reduce((s,sp)=>s+sp.qty,0);
+    // Calculate circle radius based on available space
+    const maxR=Math.min(bedW/(totalInRow+1)/2, bandH/2.5, 22);
+
+    let xCursor=bedX+maxR+15;
+    for(const sp of band.plants){
+      // Place this species' circles in a tight group
+      const cols=Math.ceil(Math.sqrt(sp.qty));
+      const rows=Math.ceil(sp.qty/cols);
+      const r=Math.min(maxR, maxR*(0.7+sp.hcm/maxH*0.4));
+      const spacing=r*2.1;
+      const groupW=cols*spacing;
+      const groupStartX=xCursor;
+
+      let placed_count=0;
+      for(let row=0;row<rows&&placed_count<sp.qty;row++){
+        for(let col=0;col<cols&&placed_count<sp.qty;col++){
+          const cx=groupStartX+col*spacing+(row%2)*spacing*0.3;
+          const cy=bandCy-((rows-1)*spacing/2)+row*spacing;
+          const jx=cx+(rand()-0.5)*r*0.3;
+          const jy=cy+(rand()-0.5)*r*0.3;
+          placed.push({x:jx,y:jy,r:r*(0.9+rand()*0.2),species:sp.num});
+          placed_count++;
+        }
+      }
+      xCursor+=groupW+r*1.5;
+    }
+  }
+
+  // SVG
   const shapeLabels:Record<string,string>={rectangle:"Rektangul\u00e4r rabatt",kidney:"Njurformad rabatt",oval:"Oval rabatt",circular:"Rund rabatt",curved:"Sv\u00e4ngd rabatt","L-shaped":"L-formad rabatt",triangular:"Triangul\u00e4r rabatt","narrow-strip":"Smal remsa",irregular:"Friform rabatt"};
   let s='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,sans-serif">';
   s+='<rect width="100%" height="100%" fill="#fafaf5"/>';
   s+='<text x="'+(bedX+bedW/2)+'" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#333">Planteringsplan '+lengthM+'m \u00d7 '+widthM+'m</text>';
   s+='<text x="'+(bedX+bedW/2)+'" y="40" text-anchor="middle" font-size="10" fill="#999">'+(shapeLabels[bedShape]||"Rabatt")+' \u00b7 H\u00f6ga bak \u2192 L\u00e5ga fram</text>';
   s+='<path d="'+getBedPath()+'" fill="#f0ede8" stroke="#b5b0a0" stroke-width="2"/>';
-  const sp2=[...placed].sort((a,b)=>a.y-b.y);
-  for(const p of sp2){const sp=species.find(s=>s.num===p.species)!;s+='<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+p.r.toFixed(1)+'" fill="'+sp.color+'" fill-opacity="0.3" stroke="'+sp.color+'" stroke-width="1.5" stroke-opacity="0.6"/>';s+='<text x="'+p.x.toFixed(1)+'" y="'+(p.y+4).toFixed(1)+'" text-anchor="middle" font-size="'+(p.r>16?12:9)+'" font-weight="700" fill="#555">'+sp.num+'</text>';}
-  s+='<line x1="'+bedX+'" y1="'+(H-12)+'" x2="'+(bedX+bedW)+'" y2="'+(H-12)+'" stroke="#bbb" stroke-width="0.8"/>';
-  s+='<text x="'+(bedX+bedW/2)+'" y="'+(H-2)+'" text-anchor="middle" font-size="10" fill="#aaa">\u2190 '+lengthM+' m \u2192</text>';
-  const legX=bedX+bedW+20,legY=bedY;
-  s+='<text x="'+legX+'" y="'+(legY-5)+'" font-size="11" font-weight="700" fill="#333">V\u00e4xtlista</text>';
-  s+='<line x1="'+legX+'" y1="'+(legY+2)+'" x2="'+(legX+legendW-10)+'" y2="'+(legY+2)+'" stroke="#ddd" stroke-width="0.5"/>';
-  species.forEach((sp,i)=>{const y=legY+18+i*26;s+='<circle cx="'+(legX+10)+'" cy="'+(y+1)+'" r="9" fill="'+sp.color+'" fill-opacity="0.35" stroke="'+sp.color+'" stroke-width="1.2"/>';s+='<text x="'+(legX+10)+'" y="'+(y+5)+'" text-anchor="middle" font-size="9" font-weight="700" fill="#555">'+sp.num+'</text>';s+='<text x="'+(legX+24)+'" y="'+(y+1)+'" font-size="9" font-weight="600" fill="#333">'+sp.name+'</text>';s+='<text x="'+(legX+24)+'" y="'+(y+12)+'" font-size="7.5" fill="#888">'+sp.qty+'st \u00b7 '+sp.hcm+'cm</text>';});
+
+  // Row labels
+  s+='<text x="'+(bedX+bedW+5)+'" y="'+(bedY+bedH*0.17)+'" font-size="9" fill="#bbb">Bak</text>';
+  s+='<text x="'+(bedX+bedW+5)+'" y="'+(bedY+bedH*0.5)+'" font-size="9" fill="#bbb">Mitt</text>';
+  s+='<text x="'+(bedX+bedW+5)+'" y="'+(bedY+bedH*0.83)+'" font-size="9" fill="#bbb">Fram</text>';
+
+  // Draw circles
+  for(const p of placed){
+    const sp=species.find(s=>s.num===p.species)!;
+    s+='<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+p.r.toFixed(1)+'" fill="'+sp.color+'" fill-opacity="0.3" stroke="'+sp.color+'" stroke-width="1.5" stroke-opacity="0.6"/>';
+    s+='<text x="'+p.x.toFixed(1)+'" y="'+(p.y+4).toFixed(1)+'" text-anchor="middle" font-size="'+(p.r>14?12:9)+'" font-weight="700" fill="#555">'+sp.num+'</text>';
+  }
+
+  // Total count
+  s+='<text x="'+(bedX+bedW/2)+'" y="'+(H-18)+'" text-anchor="middle" font-size="9" fill="#aaa">Totalt '+placed.length+' plantor</text>';
+  s+='<line x1="'+bedX+'" y1="'+(H-8)+'" x2="'+(bedX+bedW)+'" y2="'+(H-8)+'" stroke="#bbb" stroke-width="0.8"/>';
+  s+='<text x="'+(bedX+bedW/2)+'" y="'+(H-0)+'" text-anchor="middle" font-size="10" fill="#aaa">\u2190 '+lengthM+' m \u2192</text>';
+
+  // Legend
+  const legX=bedX+bedW+20,legY=bedY+bedH*0.25;
+  s+='<text x="'+legX+'" y="'+(legY-12)+'" font-size="11" font-weight="700" fill="#333">V\u00e4xtlista</text>';
+  s+='<line x1="'+legX+'" y1="'+(legY-5)+'" x2="'+(legX+legendW-10)+'" y2="'+(legY-5)+'" stroke="#ddd" stroke-width="0.5"/>';
+  species.forEach((sp,i)=>{const y=legY+5+i*28;s+='<circle cx="'+(legX+10)+'" cy="'+(y+1)+'" r="9" fill="'+sp.color+'" fill-opacity="0.35" stroke="'+sp.color+'" stroke-width="1.2"/>';s+='<text x="'+(legX+10)+'" y="'+(y+5)+'" text-anchor="middle" font-size="9" font-weight="700" fill="#555">'+sp.num+'</text>';s+='<text x="'+(legX+25)+'" y="'+(y+1)+'" font-size="9" font-weight="600" fill="#333">'+sp.name+'</text>';s+='<text x="'+(legX+25)+'" y="'+(y+12)+'" font-size="7.5" fill="#888">'+sp.qty+'st \u00b7 '+sp.hcm+'cm</text>';});
+
   s+='</svg>';
   return s;
 }
