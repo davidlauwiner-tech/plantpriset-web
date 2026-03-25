@@ -105,25 +105,53 @@ export default function PlaneraPage() {
 
       setLoadingStep("Hämtar priser från 7 butiker...");
       const priced: PricedPlant[] = [];
+      // Estimated prices by plant type when no DB match
+      const estPrices: Record<string, {seed: number, plant: number}> = {
+        default_tall: {seed: 45, plant: 129},    // >80cm: riddarsporre, stockros, gräs
+        default_medium: {seed: 35, plant: 89},    // 40-80cm: salvia, lavendel, flox
+        default_low: {seed: 29, plant: 69},        // <40cm: timjan, kattmynta, nepeta
+      };
+
       for (const plant of parsed.plants) {
         const searchName = plant.name.toLowerCase().replace(/['\u2019]/g, "");
-        const res = await fetch(
-          process.env.NEXT_PUBLIC_SUPABASE_URL + "/rest/v1/products?name=ilike.*" + encodeURIComponent(searchName) + "*&select=name,slug,product_type,product_listings(listings(price_sek))&limit=5",
-          { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: "Bearer " + (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "") } }
-        );
-        const products = await res.json();
-        let minSeed: number | undefined, minPlant: number | undefined, seedSlug: string | undefined, plantSlug: string | undefined;
-        if (Array.isArray(products)) {
-          for (const prod of products) {
-            const prices = (prod.product_listings || []).map((pl: any) => pl.listings).flat().filter(Boolean).map((l: any) => l.price_sek).filter(Boolean);
-            if (prices.length > 0) {
-              const min = Math.min(...prices);
-              if (prod.product_type === "seed" && min < 200 && (!minSeed || min < minSeed)) { minSeed = min; seedSlug = prod.slug; }
-              if (prod.product_type === "plant" && (!minPlant || min < minPlant)) { minPlant = min; plantSlug = prod.slug; }
+        // Try multiple search strategies
+        const searchTerms = [
+          searchName,
+          searchName.split(" ")[0], // First word only: "Praktstorkenäbb Album" → "praktstorkenäbb"
+          searchName.replace(/ä/g,"a").replace(/ö/g,"o").replace(/å/g,"a"), // Without Swedish chars
+        ];
+        
+        let minSeed: number | undefined, minPlant: number | undefined;
+        let seedSlug: string | undefined, plantSlug: string | undefined;
+        
+        for (const term of searchTerms) {
+          if (minSeed && minPlant) break; // Found both, stop searching
+          try {
+            const res = await fetch(
+              process.env.NEXT_PUBLIC_SUPABASE_URL + "/rest/v1/products?name=ilike.*" + encodeURIComponent(term) + "*&select=name,slug,product_type,product_listings(listings(price_sek))&limit=5",
+              { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: "Bearer " + (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "") } }
+            );
+            const products = await res.json();
+            if (Array.isArray(products)) {
+              for (const prod of products) {
+                const prices = (prod.product_listings || []).map((pl: any) => pl.listings).flat().filter(Boolean).map((l: any) => l.price_sek).filter(Boolean);
+                if (prices.length > 0) {
+                  const min = Math.min(...prices);
+                  if (prod.product_type === "seed" && min < 200 && (!minSeed || min < minSeed)) { minSeed = min; seedSlug = prod.slug; }
+                  if (prod.product_type === "plant" && (!minPlant || min < minPlant)) { minPlant = min; plantSlug = prod.slug; }
+                }
+              }
             }
-          }
+          } catch {}
         }
-        priced.push({ ...plant, product_slug: seedSlug || plantSlug, seed_price: minSeed, plant_price: minPlant });
+        
+        // Fallback estimated prices if no match
+        const est = plant.height_cm > 80 ? estPrices.default_tall : plant.height_cm > 40 ? estPrices.default_medium : estPrices.default_low;
+        const isEstimate = !minSeed && !minPlant;
+        if (!minSeed) minSeed = est.seed;
+        if (!minPlant) minPlant = est.plant;
+        
+        priced.push({ ...plant, product_slug: seedSlug || plantSlug, seed_price: minSeed, plant_price: minPlant, is_estimate: isEstimate } as any);
       }
       setPricedPlants(priced);
 
@@ -355,8 +383,8 @@ export default function PlaneraPage() {
                 <div style={{ color: "var(--fg4)", fontSize: 12, marginTop: 2 }}>Skötsel: {p.care} &middot; {p.quantity} st</div>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                {p.seed_price && <div style={{ fontSize: 13, color: "var(--fg3)" }}>Frö: {p.seed_price} kr</div>}
-                {p.plant_price && <div style={{ fontSize: 13, color: "var(--accent)" }}>Planta: {p.plant_price} kr</div>}
+                {p.seed_price && <div style={{ fontSize: 13, color: "var(--fg3)" }}>Frö: {p.seed_price} kr{(p as any).is_estimate ? " ~" : ""}</div>}
+                {p.plant_price && <div style={{ fontSize: 13, color: "var(--accent)" }}>Planta: {p.plant_price} kr{(p as any).is_estimate ? " ~" : ""}</div>}
                 {p.product_slug && <a href={"/produkt/" + p.product_slug} style={{ fontSize: 12, color: "var(--accent)", textDecoration: "underline" }}>Jämför priser</a>}
               </div>
             </div>);
