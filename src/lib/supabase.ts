@@ -137,3 +137,15 @@ export async function getChildSubcategories(parentSlug: string) {
   if (error) return [];
   return data || [];
 }
+
+
+export async function getRelatedProducts(productType: string, currentSlug: string, limit: number = 6) {
+  const { data } = await supabase
+    .from("products")
+    .select("name, slug, image_url, product_type, product_listings(listings(price_sek))")
+    .eq("product_type", productType || "seed")
+    .neq("slug", currentSlug)
+    .not("image_url", "is", null)
+    .limit(limit);
+  return data || [];
+}

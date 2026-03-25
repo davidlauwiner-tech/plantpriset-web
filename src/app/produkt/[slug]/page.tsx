@@ -1,4 +1,4 @@
-import { getProductBySlug } from "@/lib/supabase";
+import { getProductBySlug, getRelatedProducts } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -121,6 +121,33 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         })}
       </div>
     </div>
+
+      {/* Relaterade produkter */}
+      <RelatedProducts productType={product.product_type} currentSlug={slug} />
     </>
+  );
+}
+
+async function RelatedProducts({ productType, currentSlug }: { productType: string; currentSlug: string }) {
+  const related = await getRelatedProducts(productType, currentSlug, 6);
+  if (!related?.length) return null;
+  return (
+    <div style={{ marginTop: 48 }}>
+      <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, marginBottom: 16 }}>Relaterade produkter</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
+        {related.map((p: any) => {
+          const prices = (p.product_listings || []).map((pl: any) => pl.listings).filter(Boolean).map((l: any) => l.price_sek).filter(Boolean);
+          const lowest = prices.length > 0 ? Math.min(...prices) : null;
+          return (
+            <a key={p.slug} href={`/produkt/${p.slug}`} style={{ textDecoration: "none", color: "inherit", border: "1px solid var(--border)", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 6, background: "var(--bg)", transition: "box-shadow 0.2s" }}>
+              {p.image_url ? <img src={p.image_url} alt={p.name} style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 6 }} /> : <div style={{ width: "100%", height: 100, background: "var(--green-bg)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🌱</div>}
+              <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{p.name}</div>
+              {lowest && <div style={{ fontSize: 13, color: "var(--accent)" }}>Från {Math.round(lowest)} kr</div>}
+              {prices.length > 1 && <div style={{ fontSize: 11, color: "var(--fg3)" }}>{prices.length} butiker</div>}
+            </a>
+          );
+        })}
+      </div>
+    </div>
   );
 }
