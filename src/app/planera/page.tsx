@@ -39,7 +39,7 @@ const SUN = [
 ];
 
 type Plant = { name: string; latin: string; quantity: number; position: string; height_cm: number; spread_cm: number; color: string; bloom_period: string; care: string; };
-type Plan = { title: string; description: string; plants: Plant[]; tips: string; };
+type Plan = { title: string; description: string; plants: Plant[]; layout?: any[]; tips: string; };
 type PricedPlant = Plant & { product_slug?: string; seed_price?: number; plant_price?: number; retailers?: number; };
 
 export default function PlaneraPage() {
