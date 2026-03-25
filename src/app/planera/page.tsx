@@ -88,8 +88,8 @@ export default function PlaneraPage() {
       "- Typ: " + spaceName + "\n- Mått: " + length + "m x " + width + "m\n- Sol: " + sunName +
       "\n- Stil: " + styleName + " - " + styleDesc + "\n- Zon: 3-4 (Mellansverige)\n\n" +
       "Svara ENDAST med JSON (ingen markdown, inga backticks). Formatet:\n" +
-      '{"title":"Namn","description":"2-3 meningar","plants":[{"name":"Svenskt namn","latin":"Latinskt namn","quantity":3,"position":"Bakre raden","height_cm":80,"spread_cm":50,"color":"Lila","bloom_period":"Juni-Aug","care":"Lätt"}],"layout":[{"num":1,"x":25,"y":15,"r":12},{"num":1,"x":40,"y":18,"r":12},{"num":2,"x":60,"y":20,"r":15}],"tips":"2-3 odlingstips"}\n\n' +
-      "Välj 6-10 sorter. Ange spread_cm (bredd vid mognad) för varje växt. Beräkna quantity baserat på ytans storlek och varje växts spread. Ska passa svenska förhållanden, ge blomning maj-sept, ha varierande höjder och färgharmoni.\n\nVIKTIGT — layout array: Skapa en top-down planteringsplan genom att ange en cirkel för VARJE planta. Varje cirkel har num (växtens nummer 1-baserat i plants-arrayen), x (0-100 horisontellt), y (0-100 vertikalt, 0=bak/högt, 100=fram/lågt), r (radie 3-18 baserat på spread_cm). Cirklarna ska FYLLA hela ytan utan tomrum — som en professionell planteringsritning där varje cirkel rör vid sina grannar. Höga växter (stora cirklar) placeras mot y=0-35, mellanstora y=30-65, låga y=60-100. Sprid samma art på flera ställen för naturligt utseende.";
+      '{"title":"Namn","description":"2-3 meningar","plants":[{"name":"Svenskt namn","latin":"Latinskt namn","quantity":3,"position":"Bakre raden","height_cm":80,"spread_cm":50,"color":"Lila","bloom_period":"Juni-Aug","care":"Lätt"}],"tips":"2-3 odlingstips"}\n\n' +
+      "Välj 6-10 sorter. Ange spread_cm (bredd vid mognad) för varje växt. Beräkna quantity baserat på ytans storlek och varje växts spread — t.ex. en ros med 60cm spread behöver färre exemplar än lavendel med 30cm spread. Fyll hela ytan utan stora mellanrum. Ska passa svenska förhållanden, ge blomning maj-sept, ha varierande höjder och färgharmoni.";
 
     try {
       const response = await fetch("/api/generate-plan", {
