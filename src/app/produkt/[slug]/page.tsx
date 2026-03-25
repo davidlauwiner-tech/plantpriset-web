@@ -41,7 +41,36 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   listings.forEach((l: any) => { const n = l.retailers?.name || "?"; rc[n] = (rc[n] || 0) + 1; });
   const hasDup = Object.values(rc).some(c => c > 1);
 
+  // JSON-LD structured data for Google rich results
+  const lowestPrice = prices.length > 0 ? Math.min(...prices) : null;
+  const highestPrice = prices.length > 0 ? Math.max(...prices) : null;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: (product as any).description || `Jämför priser på ${product.name} från ${listings.length} butiker`,
+    ...(product.image_url ? { image: product.image_url } : {}),
+    ...(product.latin_name ? { additionalProperty: { "@type": "PropertyValue", name: "Latinskt namn", value: product.latin_name } } : {}),
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "SEK",
+      ...(lowestPrice ? { lowPrice: lowestPrice.toFixed(2) } : {}),
+      ...(highestPrice ? { highPrice: highestPrice.toFixed(2) } : {}),
+      offerCount: listings.length,
+      offers: listings.slice(0, 10).map((l: any) => ({
+        "@type": "Offer",
+        price: l.price_sek?.toFixed(2),
+        priceCurrency: "SEK",
+        availability: "https://schema.org/InStock",
+        seller: { "@type": "Organization", name: l.retailers?.name || "Okänd butik" },
+        ...(l.product_url ? { url: l.product_url } : {}),
+      })),
+    },
+  };
+
   return (
+    <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     <div className="pp-detail">
       <a href="javascript:history.back()" className="pp-back">← Tillbaka</a>
       <div className="pp-detail-top">
