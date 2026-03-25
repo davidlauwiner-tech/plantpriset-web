@@ -18,7 +18,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const p = await getProductBySlug(slug);
   if (!p) return { title: "Produkt hittades inte" };
-  return { title: `${p.name} — Jämför priser | Plantpriset`, description: `Jämför priser på ${p.name} från flera svenska butiker.` };
+  const listings = ((p as any).product_listings || []).map((pl: any) => pl.listings).filter(Boolean);
+  const prices = listings.map((l: any) => l.price_sek).filter(Boolean);
+  const lowest = prices.length > 0 ? Math.min(...prices) : null;
+  const retailers = new Set(listings.map((l: any) => l.retailers?.name).filter(Boolean));
+  const lowestRetailer = lowest ? listings.find((l: any) => l.price_sek === lowest)?.retailers?.name : null;
+  const priceStr = lowest ? ` — Från ${Math.round(lowest)} kr` : "";
+  const retailerStr = retailers.size > 0 ? ` | Jämför ${retailers.size} butiker` : "";
+  const cheapStr = lowestRetailer ? `Billigast hos ${lowestRetailer} (${Math.round(lowest!)} kr). ` : "";
+  return {
+    title: `${p.name}${priceStr}${retailerStr} | Plantpriset`,
+    description: `${cheapStr}Jämför priser på ${p.name}${p.latin_name ? " (" + p.latin_name + ")" : ""} från ${retailers.size || "flera"} svenska trädgårdsbutiker. ${(p as any).description ? (p as any).description.slice(0, 120) : "Hitta lägsta priset på Plantpriset.se"}`,
+  };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
