@@ -208,9 +208,9 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   function getBedPath():string{const x=bedX,y=bedY,w=bedW,h=bedH,r=20;if(bedOutline&&bedOutline.length>=4){const pts=bedOutline.map(([px,py]:number[])=>[x+(px/100)*w,y+(py/100)*h]);let d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);for(let i=1;i<pts.length;i++){const p=pts[i-1],c=pts[i],n=pts[(i+1)%pts.length];d+=" Q"+(c[0]+(n[0]-p[0])*0.15).toFixed(1)+","+(c[1]+(n[1]-p[1])*0.15).toFixed(1)+" "+c[0].toFixed(1)+","+c[1].toFixed(1);}return d+" Z";}return "M"+(x+r)+","+y+" L"+(x+w-r)+","+y+" Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+" L"+(x+w)+","+(y+h-r)+" Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+" L"+(x+r)+","+(y+h)+" Q"+x+","+(y+h)+" "+x+","+(y+h-r)+" L"+x+","+(y+r)+" Q"+x+","+y+" "+(x+r)+","+y+" Z";}
 
   const sorted=[...plants].sort((a:any,b:any)=>b.height_cm-a.height_cm);
-  interface Sp{num:number;name:string;color:string;qty:number;hcm:number;}
+  interface Sp{num:number;name:string;color:string;qty:number;hcm:number;scm:number;}
   const species:Sp[]=[];
-  sorted.forEach((p:any,i:number)=>{species.push({num:i+1,name:p.name,color:cM[p.color]||"#80b870",qty:p.quantity||3,hcm:p.height_cm});});
+  sorted.forEach((p:any,i:number)=>{species.push({num:i+1,name:p.name,color:cM[p.color]||"#80b870",qty:p.quantity||3,hcm:p.height_cm,scm:p.spread_cm||Math.round(p.height_cm*0.6)});});
 
   // Use Claude's layout if available, otherwise fall back to algorithm
   interface Circle{x:number;y:number;r:number;num:number;}
@@ -234,7 +234,8 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     const baseR=Math.min(Math.sqrt(bedArea/Math.PI/Math.max(totalClusters,1)),bedH/5,55);
     const backP=species.filter(s=>s.hcm>60),midP=species.filter(s=>s.hcm>=25&&s.hcm<=60),frontP=species.filter(s=>s.hcm<25);
     const rowBands=[{plants:backP,yMin:bedY+20,yMax:bedY+bedH*0.35},{plants:midP,yMin:bedY+bedH*0.32,yMax:bedY+bedH*0.68},{plants:frontP,yMin:bedY+bedH*0.65,yMax:bedY+bedH-20}];
-    for(const band of rowBands){for(const sp of band.plants){for(let q=0;q<sp.qty;q++){const r=baseR*(0.6+sp.hcm/maxH*0.5);let bx=0,by=0,bs=-Infinity;for(let a=0;a<80;a++){const cx=bedX+r+10+rand()*(bedW-r*2-20),cy=band.yMin+rand()*(band.yMax-band.yMin);if(!pointInBed(cx,cy))continue;let sc=0;for(const c of circles){const d=Math.sqrt((cx-c.x)**2+(cy-c.y)**2);const ov=(r+c.r)-d;if(ov>r*0.85)sc-=ov*6;else if(ov>-8)sc+=20;else if(d>(r+c.r)*1.8)sc-=2;}if(sc>bs){bs=sc;bx=cx;by=cy;}}if(bs>-Infinity)circles.push({x:bx,y:by,r,num:sp.num});}}}
+    const pxPerMeter=bedW/lengthM;
+    for(const band of rowBands){for(const sp of band.plants){for(let q=0;q<sp.qty;q++){const spreadM=(sp.scm||sp.hcm*0.6)/100;const r=Math.max(10,Math.min(spreadM*pxPerMeter/2, bedH/3));let bx=0,by=0,bs=-Infinity;for(let a=0;a<80;a++){const cx=bedX+r+10+rand()*(bedW-r*2-20),cy=band.yMin+rand()*(band.yMax-band.yMin);if(!pointInBed(cx,cy))continue;let sc=0;for(const c of circles){const d=Math.sqrt((cx-c.x)**2+(cy-c.y)**2);const ov=(r+c.r)-d;if(ov>r*0.85)sc-=ov*6;else if(ov>-8)sc+=20;else if(d>(r+c.r)*1.8)sc-=2;}if(sc>bs){bs=sc;bx=cx;by=cy;}}if(bs>-Infinity)circles.push({x:bx,y:by,r,num:sp.num});}}}
   }
 
   // SVG
