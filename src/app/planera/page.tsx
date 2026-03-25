@@ -89,7 +89,7 @@ export default function PlaneraPage() {
       "\n- Stil: " + styleName + " - " + styleDesc + "\n- Zon: 3-4 (Mellansverige)\n\n" +
       "Svara ENDAST med JSON (ingen markdown, inga backticks). Formatet:\n" +
       '{"title":"Namn","description":"2-3 meningar","plants":[{"name":"Svenskt namn","latin":"Latinskt namn","quantity":3,"position":"Bakre raden","height_cm":80,"spread_cm":50,"color":"Lila","bloom_period":"Juni-Aug","care":"Lätt"}],"tips":"2-3 odlingstips"}\n\n' +
-      "Välj 6-10 sorter. Ange spread_cm (bredd vid mognad) för varje växt. Beräkna quantity baserat på ytans storlek och varje växts spread — t.ex. en ros med 60cm spread behöver färre exemplar än lavendel med 30cm spread. Fyll hela ytan utan stora mellanrum. Ska passa svenska förhållanden, ge blomning maj-sept, ha varierande höjder och färgharmoni.";
+      "Välj 8-12 sorter. Ange spread_cm (bredd vid mognad) för varje växt. BERÄKNA quantity så att HELA ytan täcks: summera (quantity × spread_cm × spread_cm × 0.785) för alla växter — summan ska vara MINST lika stor som ytans area i cm² (t.ex. 3m × 1.5m = 45000 cm²). Exempel: en buskros med spread 80cm täcker ~5000cm², så 1st räcker för den ytan. Men lavendel med spread 30cm täcker ~700cm² per planta, så du behöver 5-6st. Varje planta representeras av EN cirkel i planteringsplanen — cirkeln visar hur stor plantan blir vid mognad. Ska passa svenska förhållanden, ge blomning maj-sept, ha varierande höjder och färgharmoni.";
 
     try {
       const response = await fetch("/api/generate-plan", {
