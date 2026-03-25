@@ -2,8 +2,28 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Plantpriset — Sveriges prisjämförelse för trädgården",
-  description: "Jämför priser på fröer, växter och verktyg från 7 svenska butiker.",
+  title: {
+    default: "Plantpriset — Jämför priser på trädgårdsprodukter",
+    template: "%s | Plantpriset",
+  },
+  description: "Jämför priser på fröer, växter, lökar och trädgårdsverktyg från 7 svenska butiker. Hitta lägsta priset och spara pengar i trädgården. Uppdateras dagligen.",
+  keywords: ["prisjämförelse trädgård", "jämför växtpriser", "billiga fröer", "trädgårdsprodukter", "Plantagen priser", "Blomsterlandet priser", "Impecta fröer", "köpa växter online", "plantera trädgård", "trädgårdsplanering"],
+  metadataBase: new URL("https://plantpriset.se"),
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "sv_SE",
+    url: "https://plantpriset.se",
+    siteName: "Plantpriset",
+    title: "Plantpriset — Sveriges prisjämförelse för trädgården",
+    description: "Jämför priser på 9 000+ trädgårdsprodukter från 7 butiker. Uppdateras dagligen.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Plantpriset — Jämför trädgårdspriser",
+    description: "Hitta lägsta priset på fröer, växter och verktyg från 7 svenska butiker.",
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
