@@ -158,8 +158,38 @@ export async function POST(request: Request) {
       imageUrl = await generateWithDalle3(plantList, style, space, length, width, styleDescriptions, spaceDescriptions);
     }
 
-    // Generate SVG planting diagram with detected shape
-    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline, parsedLayout);
+    // Step 3: Ask GPT-4o to analyze the AI image and create circle layout
+    let aiLayout: any[] = [];
+    if (imageUrl) {
+      try {
+        const imgForVision = imageUrl.startsWith("data:") ? imageUrl : imageUrl;
+        const plantList2 = plants.map((p: any, i: number) => (i+1) + ". " + p.name + " (" + p.height_cm + "cm, " + (p.spread_cm || Math.round(p.height_cm*0.6)) + "cm spread, " + p.quantity + "st)").join(", ");
+        
+        const layoutRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (process.env.OPENAI_API_KEY || "") },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            max_tokens: 1500,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "image_url", image_url: { url: imgForVision, detail: "low" } },
+                { type: "text", text: "Look at this garden image. These plants are in it: " + plantList2 + ".\n\nCreate a top-down planting plan. For EACH individual plant, give its position as a circle on a 0-100 grid (0,0 = top-left/back, 100,100 = bottom-right/front). Size each circle by the plant's spread.\n\nRespond ONLY with a JSON array, no markdown:\n[{\"num\":1,\"x\":25,\"y\":15,\"r\":12},{\"num\":1,\"x\":40,\"y\":20,\"r\":12}]\n\nnum = plant number (1-based from list). x = left-right position 0-100. y = back-front position 0-100. r = radius 3-20 based on spread (big spread = big r). Place exactly the right quantity of each plant. Circles should TOUCH and FILL the entire area with NO gaps." }
+              ]
+            }]
+          })
+        });
+        const layoutData = await layoutRes.json();
+        const layoutText = layoutData.choices?.[0]?.message?.content || "";
+        try {
+          const clean = layoutText.replace(/```json|```/g, "").trim();
+          aiLayout = JSON.parse(clean);
+        } catch { aiLayout = []; }
+      } catch (e) { console.log("Layout vision failed:", e); }
+    }
+
+    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline, aiLayout.length > 0 ? aiLayout : parsedLayout);
 
     return NextResponse.json({ imageUrl, diagram, editDebug, bedShape, bedOutline });
   } catch (err: any) {
