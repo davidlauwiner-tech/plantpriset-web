@@ -6,12 +6,13 @@ export async function POST(request: Request) {
   const contentType = request.headers.get("content-type") || "";
 
   let plants: any[], style: string, space: string, sun: string, length: string, width: string, title: string;
+  let parsedLayout: any[] = [];
   let photoBuffer: Buffer | null = null;
 
   if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();
     plants = JSON.parse(formData.get("plants") as string || "[]");
-    const parsedLayout = JSON.parse(formData.get("layout") as string || "[]");
+    parsedLayout = JSON.parse(formData.get("layout") as string || "[]");
     style = formData.get("style") as string || "";
     space = formData.get("space") as string || "";
     sun = formData.get("sun") as string || "";
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   } else {
     const body = await request.json();
     plants = body.plants || [];
-    var parsedLayout = body.layout || [];
+    parsedLayout = body.layout || [];
     style = body.style || "";
     space = body.space || "";
     sun = body.sun || "";
