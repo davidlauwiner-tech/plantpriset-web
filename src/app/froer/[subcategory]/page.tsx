@@ -1,5 +1,5 @@
 import { getSubcategories, getProductsBySubcategory, getChildSubcategories } from "@/lib/supabase";
-import ProductCard from "@/components/ProductCard";
+import ColourFilter from "@/components/ColourFilter";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -20,9 +20,8 @@ export default async function SubcategoryPage({ params }: { params: Promise<{ su
   const sc = subcats.find((s: any) => s.slug === subcategory);
   if (!sc) notFound();
 
-  // Check for child subcategories (e.g. Tomater -> Körsbärstomater, Biffstomater)
   const children = await getChildSubcategories(subcategory);
-  const products = await getProductsBySubcategory(sc.id, 60);
+  const products = await getProductsBySubcategory(sc.id, 200);
 
   return (
     <div className="pp-results">
@@ -48,14 +47,7 @@ export default async function SubcategoryPage({ params }: { params: Promise<{ su
         </>
       )}
 
-      <p className="pp-results-count">{products.length} produkter totalt</p>
-      {products.length > 0 && (
-        <div className="pp-product-grid">
-          {products.map((p: any) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      )}
+      <ColourFilter products={products} />
     </div>
   );
 }
