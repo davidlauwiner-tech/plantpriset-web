@@ -139,13 +139,19 @@ export async function getChildSubcategories(parentSlug: string) {
 }
 
 
-export async function getRelatedProducts(productType: string, currentSlug: string, limit: number = 6) {
-  const { data } = await supabase
+export async function getRelatedProducts(productType: string, currentSlug: string, limit: number = 6, subcategoryId?: number | null) {
+  let query = supabase
     .from("products")
     .select("name, slug, image_url, product_type, product_listings(listings(price_sek))")
-    .eq("product_type", productType || "seed")
     .neq("slug", currentSlug)
-    .not("image_url", "is", null)
-    .limit(limit);
+    .not("image_url", "is", null);
+
+  if (subcategoryId) {
+    query = query.eq("subcategory_id", subcategoryId);
+  } else {
+    query = query.eq("product_type", productType || "seed");
+  }
+
+  const { data } = await query.limit(limit);
   return data || [];
 }
