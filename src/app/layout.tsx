@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     url: "https://plantpriset.se",
     siteName: "Plantpriset",
     title: "Plantpriset — Sveriges prisjämförelse för trädgården",
-    description: "Jämför priser på 9 000+ trädgårdsprodukter från 7 butiker. Uppdateras dagligen.",
+    description: "Jämför priser på 8 000+ trädgårdsprodukter från 7 butiker. Uppdateras dagligen.",
   },
   twitter: {
     card: "summary_large_image",
@@ -31,56 +31,49 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="sv">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300;1,9..144,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
       </head>
       <body>
         <nav className="pp-nav">
-          <div className="pp-nav-inner">
-            <a href="/" className="pp-logo">plant<em>priset</em></a>
-            <form action="/sok" method="GET" className="pp-nav-search">
-              <input name="q" placeholder="Sök produkt..." />
-              <button type="submit">Sök</button>
-            </form>
-            <div className="pp-nav-cats">
-              <a href="/froer">Fröer</a>
-              <a href="/vaxter">Växter</a>
-              <a href="/lokar">Lökar &amp; Knölar</a>
-              <a href="/tillbehor">Tillbehör</a>
-            <a href="/planera" style={{color:"var(--accent)",fontWeight:600}}>Planera</a>
-            </div>
+          <a href="/" className="pp-nav-logo">plantpriset<span>.se</span></a>
+          <div className="pp-nav-links">
+            <a href="/froer">Fröer</a>
+            <a href="/vaxter">Växter</a>
+            <a href="/lokar">Lökar</a>
+            <a href="/tillbehor">Tillbehör</a>
+            <a href="/planera" className="pp-nav-cta">Planera din rabatt</a>
           </div>
         </nav>
         {children}
         <footer className="pp-footer">
           <div className="pp-footer-inner">
             <div className="pp-footer-brand">
-              <span className="pp-footer-logo">plant<em>priset</em></span>
-              <p>Sveriges prisjämförelse för trädgården. 9 000+ produkter. 7 butiker.</p>
+              <div className="pp-footer-logo">plantpriset<span>.se</span></div>
+              <p>Sveriges prisjämförare för trädgården. 8 000+ produkter från 7 butiker med daglig prisuppdatering.</p>
             </div>
-            <div className="pp-footer-links">
-              <div>
-                <h4>Kategorier</h4>
-                <a href="/froer">Fröer</a>
-                <a href="/vaxter">Växter</a>
-                <a href="/lokar">Lökar &amp; Knölar</a>
-                <a href="/tillbehor">Tillbehör</a>
-            <a href="/planera" style={{color:"var(--accent)",fontWeight:600}}>Planera</a>
-              </div>
-              <div>
-                <h4>Butiker</h4>
-                <a>Impecta Fröhandel</a>
-                <a>Blomsterlandet</a>
-                <a>Plantagen</a>
-                <a>Granngården</a>
-                <a>Cramers Blommor</a>
-                <a>Zetas Trädgård</a>
-                <a>Klostra</a>
-              </div>
+            <div className="pp-footer-col">
+              <h4>Kategorier</h4>
+              <a href="/froer">Fröer</a>
+              <a href="/vaxter">Växter</a>
+              <a href="/lokar">Lökar &amp; Knölar</a>
+              <a href="/tillbehor">Tillbehör</a>
+            </div>
+            <div className="pp-footer-col">
+              <h4>Butiker</h4>
+              <a>Impecta</a>
+              <a>Blomsterlandet</a>
+              <a>Cramers</a>
+              <a>Zetas</a>
+              <a>Plantagen</a>
+              <a>Granngården</a>
+              <a>Klostra</a>
+            </div>
+            <div className="pp-footer-col">
+              <h4>Verktyg</h4>
+              <a href="/planera">Planera din rabatt</a>
             </div>
           </div>
-          <div className="pp-footer-bottom">
-            <p>© 2026 Plantpriset. Priserna uppdateras dagligen.</p>
-          </div>
+          <div className="pp-footer-bottom">© 2026 Plantpriset.se</div>
         </footer>
       </body>
     </html>
