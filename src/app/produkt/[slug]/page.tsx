@@ -114,7 +114,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 {i === 0 && listings.length > 1 && <span className="pp-tag pp-tag-best">Lägst pris</span>}
                 {!l.in_stock && <span className="pp-tag pp-tag-oos">Ej i lager</span>}
               </div>
-              <div className="pp-pt-price">{fmtPrice(l.price_sek)}</div>
+              <div className="pp-pt-price">
+                {fmtPrice(l.price_sek)}
+                {l.quantity > 1 && <div style={{ fontSize: 11, color: 'var(--taupe)', marginTop: 2 }}>{l.quantity} st ({Math.round(l.price_sek / l.quantity)} kr/st)</div>}
+              </div>
               <div className="pp-pt-action"><a href={l.product_url} target="_blank" rel="noopener noreferrer" className="pp-buy">Till butik →</a></div>
             </div>
           );
