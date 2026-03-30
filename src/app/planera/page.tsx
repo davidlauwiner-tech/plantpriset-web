@@ -45,18 +45,18 @@ type PricedPlant = Plant & { product_slug?: string; seed_price?: number; plant_p
 
 export default function PlaneraPage() {
   const [step, setStep] = useState(0);
-  const [space, setSpace] = useState(0);
+  const [space, setSpace] = useState("");
   const [length, setLength] = useState("3");
   const [width, setWidth] = useState("1.5");
-  const [sun, setSun] = useState(0);
-  const [style, setStyle] = useState(0);
+  const [sun, setSun] = useState("");
+  const [style, setStyle] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [pricedPlants, setPricedPlants] = useState<PricedPlant[]>([]);
   const [error, setError] = useState("");
-  const [imageUrl, setImageUrl] = useState(0);
-  const [diagramSvg, setDiagramSvg] = useState(0);
+  const [imageUrl, setImageUrl] = useState("");
+  const [diagramSvg, setDiagramSvg] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -184,7 +184,7 @@ export default function PlaneraPage() {
       } catch (e) { console.log("Image generation failed:", e); }
     } catch (err: any) { setError("Kunde inte generera plan: " + err.message); }
     setLoading(false);
-    setLoadingStep("");
+    setLoadingStep(0);
   }
 
   const seedTotal = pricedPlants.reduce((sum, p) => sum + (p.seed_price || 0) * p.quantity, 0);
