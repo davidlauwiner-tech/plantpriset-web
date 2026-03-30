@@ -1,4 +1,5 @@
 "use client";
+import PlanProgress from "@/components/PlanProgress";
 import { useState, useRef } from "react";
 
 async function resizeImage(file: File, maxWidth = 1024, quality = 0.7): Promise<File> {
@@ -44,18 +45,18 @@ type PricedPlant = Plant & { product_slug?: string; seed_price?: number; plant_p
 
 export default function PlaneraPage() {
   const [step, setStep] = useState(0);
-  const [space, setSpace] = useState("");
+  const [space, setSpace] = useState(0);
   const [length, setLength] = useState("3");
   const [width, setWidth] = useState("1.5");
-  const [sun, setSun] = useState("");
-  const [style, setStyle] = useState("");
+  const [sun, setSun] = useState(0);
+  const [style, setStyle] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState("");
+  const [loadingStep, setLoadingStep] = useState(0);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [pricedPlants, setPricedPlants] = useState<PricedPlant[]>([]);
-  const [error, setError] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [diagramSvg, setDiagramSvg] = useState("");
+  const [error, setError] = useState(0);
+  const [imageUrl, setImageUrl] = useState(0);
+  const [diagramSvg, setDiagramSvg] = useState(0);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +79,7 @@ export default function PlaneraPage() {
   async function generatePlan() {
     setLoading(true);
     setError("");
-    setLoadingStep("Designar din plantering...");
+    setLoadingStep(0);
     const styleName = STYLES.find(s => s.id === style)?.name || "";
     const styleDesc = STYLES.find(s => s.id === style)?.desc || "";
     const spaceName = SPACES.find(s => s.id === space)?.name || "";
@@ -103,7 +104,7 @@ export default function PlaneraPage() {
       const parsed: Plan = JSON.parse(clean);
       setPlan(parsed);
 
-      setLoadingStep("Hämtar priser från 7 butiker...");
+      setLoadingStep(1);
       const priced: PricedPlant[] = [];
       // Estimated prices by plant type when no DB match
       const estPrices: Record<string, {seed: number, plant: number}> = {
@@ -156,7 +157,7 @@ export default function PlaneraPage() {
       setPricedPlants(priced);
 
       // Generate garden visualization
-      setLoadingStep(photoFile ? "Skapar visualisering av din yta..." : "Målar din trädgård...");
+      setLoadingStep(2);
       try {
         const formData = new FormData();
         formData.append("plants", JSON.stringify(parsed.plants));
@@ -311,12 +312,7 @@ export default function PlaneraPage() {
         </div>)}
       </>)}
 
-      {loading && (<div style={{ textAlign: "center", padding: 48 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>&#127793;</div>
-        <p style={{ color: "var(--fg3)", fontSize: 16 }}>{loadingStep || "AI:n designar din trädgård..."}</p>
-        <p style={{ color: "var(--fg4)", fontSize: 13 }}>Väljer växter, placerar dem och hämtar priser</p>
-      </div>)}
-
+      {loading && <PlanProgress currentStep={loadingStep} hasPhoto={!!photoFile} />}
       {plan && !loading && (<div>
         <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 28, marginBottom: 8 }}>{plan.title}</h2>
         <p style={{ color: "var(--fg2)", fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}>{plan.description}</p>
