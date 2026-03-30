@@ -42,9 +42,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .sort((a: any, b: any) => (a.price_sek || 9999) - (b.price_sek || 9999));
 
   const prices = listings.map((l: any) => l.price_sek).filter(Boolean);
-  const hasSavings = prices.length >= 2;
-  const saveDiff = hasSavings ? Math.round(Math.max(...prices) - Math.min(...prices)) : 0;
-  const savePct = hasSavings ? Math.round((1 - Math.min(...prices) / Math.max(...prices)) * 100) : 0;
+  const unitPrices = listings.map((l: any) => l.price_sek / (l.quantity || 1)).filter(Boolean);
+  const hasSavings = unitPrices.length >= 2;
+  const saveDiff = hasSavings ? Math.round(Math.max(...unitPrices) - Math.min(...unitPrices)) : 0;
+  const savePct = hasSavings ? Math.round((1 - Math.min(...unitPrices) / Math.max(...unitPrices)) * 100) : 0;
   const cat = CAT[product.product_type || ""];
   const brands = new Set(listings.map((l: any) => l.brand).filter(Boolean));
   const hasBrandDiff = brands.size > 1;
