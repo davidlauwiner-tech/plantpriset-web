@@ -1,20 +1,21 @@
 "use client";
+import { Sprout, Tag, Paintbrush, Camera } from "lucide-react";
 
 const STEPS = [
-  { label: "Designar din rabatt", desc: "AI:n väljer växter och placerar dem", icon: "🌱" },
-  { label: "Hämtar priser", desc: "Söker bland 7 butiker", icon: "🏷️" },
-  { label: "Skapar visualisering", desc: "Målar din framtida rabatt", icon: "🎨" },
+  { label: "Designar din rabatt", desc: "AI:n väljer växter och placerar dem", Icon: Sprout },
+  { label: "Hämtar priser", desc: "Söker bland 7 butiker", Icon: Tag },
+  { label: "Skapar visualisering", desc: "Målar din framtida rabatt", Icon: Paintbrush },
 ];
 
 export default function PlanProgress({ currentStep, hasPhoto }: { currentStep: number; hasPhoto: boolean }) {
   const steps = [...STEPS];
   if (hasPhoto) {
-    steps[2] = { label: "Visualiserar din yta", desc: "Placerar växter i ditt foto", icon: "📷" };
+    steps[2] = { label: "Visualiserar din yta", desc: "Placerar växter i ditt foto", Icon: Camera };
   }
 
   return (
     <div style={{ padding: "48px 0", maxWidth: 480, margin: "0 auto" }}>
-      {/* Animated plant icon */}
+      {/* Animated icon */}
       <div style={{ textAlign: "center", marginBottom: 32 }}>
         <div style={{
           display: "inline-flex",
@@ -23,10 +24,13 @@ export default function PlanProgress({ currentStep, hasPhoto }: { currentStep: n
           width: 72,
           height: 72,
           borderRadius: "50%",
-          background: "var(--sage-bg, #eef2e8)",
+          background: "var(--cream, #f4f0ea)",
           animation: "pulse 2s ease infinite",
         }}>
-          <span style={{ fontSize: 32 }}>{steps[Math.min(currentStep, steps.length - 1)]?.icon}</span>
+          {(() => {
+            const StepIcon = steps[Math.min(currentStep, steps.length - 1)]?.Icon;
+            return StepIcon ? <StepIcon size={32} strokeWidth={1.5} color="var(--brown, #5a4832)" /> : null;
+          })()}
         </div>
       </div>
 
