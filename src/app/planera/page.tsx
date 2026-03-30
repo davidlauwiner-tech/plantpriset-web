@@ -54,7 +54,7 @@ export default function PlaneraPage() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [pricedPlants, setPricedPlants] = useState<PricedPlant[]>([]);
-  const [error, setError] = useState(0);
+  const [error, setError] = useState("");
   const [imageUrl, setImageUrl] = useState(0);
   const [diagramSvg, setDiagramSvg] = useState(0);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
