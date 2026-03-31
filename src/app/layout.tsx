@@ -30,8 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="sv">
       <head>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-2469JQ4CZF" />
-        <script dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","G-2469JQ4CZF");` }} />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-2469JQ4CZF" />
         <script dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","G-2469JQ4CZF");` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
