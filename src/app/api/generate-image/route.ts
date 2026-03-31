@@ -163,7 +163,7 @@ export async function POST(request: Request) {
     // Skipping GPT-4o vision analysis as it produces inconsistent results
     let aiLayout: any[] = [];
 
-    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline);
+    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline, parsedLayout);
 
     return NextResponse.json({ imageUrl, diagram, editDebug, bedShape, bedOutline });
   } catch (err: any) {
@@ -204,7 +204,7 @@ async function generateWithDalle3(
   return data.data?.[0]?.url;
 }
 
-function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null): string {
+function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null, layout: any[] = []): string {
   const W = 780, H = 520, legendW = 190;
   const bedX = 20, bedY = 60, bedW = W - legendW - 40, bedH = H - bedY - 45;
 
@@ -231,20 +231,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     return "M"+(x+r)+","+y+" L"+(x+w-r)+","+y+" Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+" L"+(x+w)+","+(y+h-r)+" Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+" L"+(x+r)+","+(y+h)+" Q"+x+","+(y+h)+" "+x+","+(y+h-r)+" L"+x+","+(y+r)+" Q"+x+","+y+" "+(x+r)+","+y+" Z";
   }
 
-  function pointInBed(px: number, py: number, margin: number = 10): boolean {
-    if (bedOutline && bedOutline.length >= 4) {
-      const pts = bedOutline.map(([bx, by]: number[]) => [bedX + (bx / 100) * bedW, bedY + (by / 100) * bedH]);
-      let ins = false;
-      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-        const [xi, yi] = pts[i], [xj, yj] = pts[j];
-        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) ins = !ins;
-      }
-      return ins;
-    }
-    return px > bedX + margin && px < bedX + bedW - margin && py > bedY + margin && py < bedY + bedH - margin;
-  }
-
-  // Sort plants tallest first, build species list
+  // Sort plants tallest first
   const sorted = [...plants].sort((a: any, b: any) => b.height_cm - a.height_cm);
   interface Species { num: number; name: string; color: string; qty: number; hcm: number; scm: number; row: string; }
   const species: Species[] = [];
@@ -254,79 +241,107 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     species.push({ num: i + 1, name: p.name, color: cM[p.color] || "#6aa858", qty: p.quantity || 3, hcm: h, scm: p.spread_cm || Math.round(h * 0.6), row });
   });
 
-  const pxPerM = bedW / lengthM;
-  const rows: Record<string, { yMin: number; yMax: number }> = {
-    back:  { yMin: bedY + 15, yMax: bedY + bedH * 0.35 },
-    mid:   { yMin: bedY + bedH * 0.30, yMax: bedY + bedH * 0.68 },
-    front: { yMin: bedY + bedH * 0.62, yMax: bedY + bedH - 15 },
-  };
-
-  const byRow: Record<string, Species[]> = { back: [], mid: [], front: [] };
-  for (const sp of species) byRow[sp.row].push(sp);
+  // Build a mapping from original plant index to species number
+  // The AI returns plant_index based on original order, we need to map to sorted order
+  const originalOrder = [...plants];
+  const indexMap: Record<number, number> = {};
+  originalOrder.forEach((op: any, oi: number) => {
+    const si = sorted.findIndex((sp: any) => sp.name === op.name && sp.latin === op.latin);
+    if (si >= 0) indexMap[oi] = si + 1; // species num is 1-based
+  });
 
   interface Circle { x: number; y: number; r: number; num: number; }
   const circles: Circle[] = [];
 
-  for (const rowName of ["back", "mid", "front"] as const) {
-    const rowSpecies = byRow[rowName];
-    if (rowSpecies.length === 0) continue;
-    const band = rows[rowName];
-    const totalWeight = rowSpecies.reduce((s, sp) => s + sp.qty * Math.max(sp.scm, 30), 0);
-    let xCursor = bedX + 15;
-    const availW = bedW - 30;
+  if (layout && layout.length > 3) {
+    // USE AI-GENERATED LAYOUT
+    for (const l of layout) {
+      const speciesNum = indexMap[l.plant_index] || (l.plant_index + 1);
+      const sp = species.find(s => s.num === speciesNum);
+      if (!sp) continue;
+      const cx = bedX + (l.x / 100) * bedW;
+      const cy = bedY + (l.y / 100) * bedH;
+      const r = Math.max(8, Math.min(40, (l.r / 20) * (bedH / 8)));
+      circles.push({ x: cx, y: cy, r, num: speciesNum });
+    }
+  } else {
+    // FALLBACK: algorithmic zone-based layout
+    const pxPerM = bedW / lengthM;
+    const rows: Record<string, { yMin: number; yMax: number }> = {
+      back:  { yMin: bedY + 15, yMax: bedY + bedH * 0.35 },
+      mid:   { yMin: bedY + bedH * 0.30, yMax: bedY + bedH * 0.68 },
+      front: { yMin: bedY + bedH * 0.62, yMax: bedY + bedH - 15 },
+    };
+    const byRow: Record<string, Species[]> = { back: [], mid: [], front: [] };
+    for (const sp of species) byRow[sp.row].push(sp);
 
-    for (let si = 0; si < rowSpecies.length; si++) {
-      const sp = rowSpecies[si];
-      const weight = (sp.qty * Math.max(sp.scm, 30)) / totalWeight;
-      const zoneW = Math.max(50, availW * weight);
-      const zoneXMin = xCursor;
-      const zoneXMax = xCursor + zoneW;
-      const zoneCX = (zoneXMin + zoneXMax) / 2;
-      const zoneCY = (band.yMin + band.yMax) / 2;
-      const spreadPx = (sp.scm / 100) * pxPerM;
-      const r = Math.max(10, Math.min(spreadPx / 2, (band.yMax - band.yMin) / 2.5, zoneW / 3));
-      const placed: Circle[] = [];
+    function pointInBed(px: number, py: number, margin: number = 10): boolean {
+      if (bedOutline && bedOutline.length >= 4) {
+        const pts = bedOutline.map(([bx, by]: number[]) => [bedX + (bx / 100) * bedW, bedY + (by / 100) * bedH]);
+        let ins = false;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+          const [xi, yi] = pts[i], [xj, yj] = pts[j];
+          if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) ins = !ins;
+        }
+        return ins;
+      }
+      return px > bedX + margin && px < bedX + bedW - margin && py > bedY + margin && py < bedY + bedH - margin;
+    }
 
-      for (let q = 0; q < sp.qty; q++) {
-        if (q === 0) {
-          if (pointInBed(zoneCX, zoneCY, 5)) {
-            const c = { x: zoneCX, y: zoneCY, r, num: sp.num };
+    for (const rowName of ["back", "mid", "front"] as const) {
+      const rowSpecies = byRow[rowName];
+      if (rowSpecies.length === 0) continue;
+      const band = rows[rowName];
+      const totalWeight = rowSpecies.reduce((s, sp) => s + sp.qty * Math.max(sp.scm, 30), 0);
+      let xCursor = bedX + 15;
+      const availW = bedW - 30;
+
+      for (const sp of rowSpecies) {
+        const weight = (sp.qty * Math.max(sp.scm, 30)) / totalWeight;
+        const zoneW = Math.max(50, availW * weight);
+        const zoneCX = xCursor + zoneW / 2;
+        const zoneCY = (band.yMin + band.yMax) / 2;
+        const spreadPx = (sp.scm / 100) * (bedW / lengthM);
+        const r = Math.max(10, Math.min(spreadPx / 2, (band.yMax - band.yMin) / 2.5, zoneW / 3));
+        const placed: Circle[] = [];
+
+        for (let q = 0; q < sp.qty; q++) {
+          if (q === 0) {
+            if (pointInBed(zoneCX, zoneCY, 5)) {
+              const c = { x: zoneCX, y: zoneCY, r, num: sp.num };
+              placed.push(c); circles.push(c);
+            }
+            continue;
+          }
+          let bestX = 0, bestY = 0, bestScore = -Infinity;
+          for (let a = 0; a < 80; a++) {
+            const anchor = placed[Math.floor(rand() * placed.length)];
+            const angle = rand() * Math.PI * 2;
+            const dist = (anchor.r + r) * (0.82 + rand() * 0.25);
+            const cx = anchor.x + Math.cos(angle) * dist;
+            const cy = anchor.y + Math.sin(angle) * dist;
+            if (!pointInBed(cx, cy, 5)) continue;
+            if (cx < xCursor - r * 0.3 || cx > xCursor + zoneW + r * 0.3) continue;
+            if (cy < band.yMin - r * 0.2 || cy > band.yMax + r * 0.2) continue;
+            let score = -Math.abs(cx - zoneCX) * 0.2 - Math.abs(cy - zoneCY) * 0.2;
+            let blocked = false;
+            for (const oc of circles) {
+              if (oc.num === sp.num) continue;
+              if (Math.sqrt((cx - oc.x) ** 2 + (cy - oc.y) ** 2) < (r + oc.r) * 0.65) { blocked = true; break; }
+            }
+            if (blocked) continue;
+            for (const sc of placed) {
+              if (Math.sqrt((cx - sc.x) ** 2 + (cy - sc.y) ** 2) < (r + sc.r) * 1.4) score += 20;
+            }
+            if (score > bestScore) { bestScore = score; bestX = cx; bestY = cy; }
+          }
+          if (bestScore > -Infinity) {
+            const c = { x: bestX, y: bestY, r, num: sp.num };
             placed.push(c); circles.push(c);
           }
-          continue;
         }
-        let bestX = 0, bestY = 0, bestScore = -Infinity;
-        for (let a = 0; a < 80; a++) {
-          const anchor = placed[Math.floor(rand() * placed.length)];
-          const angle = rand() * Math.PI * 2;
-          const dist = (anchor.r + r) * (0.82 + rand() * 0.25);
-          const cx = anchor.x + Math.cos(angle) * dist;
-          const cy = anchor.y + Math.sin(angle) * dist;
-          if (!pointInBed(cx, cy, 5)) continue;
-          if (cx < zoneXMin - r * 0.3 || cx > zoneXMax + r * 0.3) continue;
-          if (cy < band.yMin - r * 0.2 || cy > band.yMax + r * 0.2) continue;
-          let score = 0;
-          score -= Math.abs(cx - zoneCX) * 0.2;
-          score -= Math.abs(cy - zoneCY) * 0.2;
-          let blocked = false;
-          for (const oc of circles) {
-            if (oc.num === sp.num) continue;
-            const d = Math.sqrt((cx - oc.x) ** 2 + (cy - oc.y) ** 2);
-            if (d < (r + oc.r) * 0.65) { blocked = true; break; }
-          }
-          if (blocked) continue;
-          for (const sc of placed) {
-            const d = Math.sqrt((cx - sc.x) ** 2 + (cy - sc.y) ** 2);
-            if (d < (r + sc.r) * 1.4) score += 20;
-          }
-          if (score > bestScore) { bestScore = score; bestX = cx; bestY = cy; }
-        }
-        if (bestScore > -Infinity) {
-          const c = { x: bestX, y: bestY, r, num: sp.num };
-          placed.push(c); circles.push(c);
-        }
+        xCursor += zoneW;
       }
-      xCursor += zoneW;
     }
   }
 
@@ -344,12 +359,12 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   s += '<path d="'+getBedPath()+'" fill="#f0ede6" stroke="#a8a090" stroke-width="2"/>';
 
   // Row dividers
-  const midLine1 = ((rows.back.yMax + rows.mid.yMin) / 2);
-  const midLine2 = ((rows.mid.yMax + rows.front.yMin) / 2);
-  s += '<line x1="'+(bedX+12)+'" y1="'+midLine1.toFixed(0)+'" x2="'+(bedX+bedW-12)+'" y2="'+midLine1.toFixed(0)+'" stroke="#d0ccc0" stroke-width="0.5" stroke-dasharray="4,4"/>';
-  s += '<line x1="'+(bedX+12)+'" y1="'+midLine2.toFixed(0)+'" x2="'+(bedX+bedW-12)+'" y2="'+midLine2.toFixed(0)+'" stroke="#d0ccc0" stroke-width="0.5" stroke-dasharray="4,4"/>';
+  const backMidY = bedY + bedH * 0.33;
+  const midFrontY = bedY + bedH * 0.65;
+  s += '<line x1="'+(bedX+12)+'" y1="'+backMidY.toFixed(0)+'" x2="'+(bedX+bedW-12)+'" y2="'+backMidY.toFixed(0)+'" stroke="#d0ccc0" stroke-width="0.5" stroke-dasharray="4,4"/>';
+  s += '<line x1="'+(bedX+12)+'" y1="'+midFrontY.toFixed(0)+'" x2="'+(bedX+bedW-12)+'" y2="'+midFrontY.toFixed(0)+'" stroke="#d0ccc0" stroke-width="0.5" stroke-dasharray="4,4"/>';
 
-  // Draw circles
+  // Circles
   const sortedC = [...circles].sort((a, b) => a.y - b.y);
   for (const c of sortedC) {
     const sp = species.find(s => s.num === c.num);
