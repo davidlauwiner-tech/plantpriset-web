@@ -163,7 +163,7 @@ export async function POST(request: Request) {
     // Skipping GPT-4o vision analysis as it produces inconsistent results
     let aiLayout: any[] = [];
 
-    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline, aiLayout.length > 0 ? aiLayout : parsedLayout);
+    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline);
 
     return NextResponse.json({ imageUrl, diagram, editDebug, bedShape, bedOutline });
   } catch (err: any) {
