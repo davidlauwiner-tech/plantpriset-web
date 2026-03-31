@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ProductCard from "./ProductCard";
 
 const COLOURS: Record<string, { label: string; dot: string }> = {
@@ -23,9 +23,21 @@ const TYPE_LABELS: Record<string, string> = {
   tool: "🧰 Tillbehör",
 };
 
+type SortOption = "name" | "price-asc" | "price-desc" | "retailers" | "savings";
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "name", label: "Namn A–Ö" },
+  { value: "price-asc", label: "Pris ↑ lägst först" },
+  { value: "price-desc", label: "Pris ↓ högst först" },
+  { value: "retailers", label: "Flest butiker" },
+  { value: "savings", label: "Störst besparing" },
+];
+
 export default function ColourFilter({ products }: { products: any[] }) {
   const [activeColour, setActiveColour] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortOption>("name");
+  const [search, setSearch] = useState("");
 
   // Find available types
   const availableTypes: Record<string, number> = {};
@@ -55,10 +67,42 @@ export default function ColourFilter({ products }: { products: any[] }) {
   );
   const showColourFilter = colourKeys.length >= 2;
 
-  // Then filter by colour
-  const filtered = activeColour
+  // Filter by colour
+  const colourFiltered = activeColour
     ? typeFiltered.filter((p) => p.colour === activeColour)
     : typeFiltered;
+
+  // Filter by search
+  const filtered = useMemo(() => {
+    let result = colourFiltered;
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter((p) =>
+        p.name?.toLowerCase().includes(q) ||
+        p.latin_name?.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort
+    return [...result].sort((a, b) => {
+      switch (sort) {
+        case "price-asc":
+          return (a.minPrice || 99999) - (b.minPrice || 99999);
+        case "price-desc":
+          return (b.minPrice || 0) - (a.minPrice || 0);
+        case "retailers":
+          return (b.retailers || 0) - (a.retailers || 0);
+        case "savings": {
+          const savA = a.minPrice && a.maxPrice ? a.maxPrice - a.minPrice : 0;
+          const savB = b.minPrice && b.maxPrice ? b.maxPrice - b.minPrice : 0;
+          return savB - savA;
+        }
+        default:
+          return (a.name || "").localeCompare(b.name || "", "sv");
+      }
+    });
+  }, [colourFiltered, search, sort]);
 
   const pillStyle = (isActive: boolean, variant?: "dark" | "green") => ({
     padding: "6px 14px",
@@ -79,6 +123,75 @@ export default function ColourFilter({ products }: { products: any[] }) {
 
   return (
     <>
+      {/* Search + Sort row */}
+      <div style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 10,
+        marginBottom: 16,
+        alignItems: "center",
+      }}>
+        <div style={{ position: "relative", flex: "1 1 200px", maxWidth: 320 }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Sök i denna kategori..."
+            style={{
+              width: "100%",
+              padding: "8px 12px 8px 34px",
+              borderRadius: 20,
+              border: "1px solid var(--bg3)",
+              fontSize: 13,
+              fontFamily: "inherit",
+              background: "#fff",
+              color: "var(--fg)",
+              outline: "none",
+              transition: "border-color 0.15s",
+            }}
+            onFocus={(e) => e.target.style.borderColor = "var(--fg4)"}
+            onBlur={(e) => e.target.style.borderColor = "var(--bg3)"}
+          />
+          <span style={{
+            position: "absolute",
+            left: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: 14,
+            color: "var(--fg4)",
+            pointerEvents: "none",
+          }}>🔍</span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13, color: "var(--fg3)" }}>Sortera:</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            style={{
+              padding: "7px 28px 7px 10px",
+              borderRadius: 20,
+              border: "1px solid var(--bg3)",
+              fontSize: 13,
+              fontFamily: "inherit",
+              background: "#fff",
+              color: "var(--fg)",
+              cursor: "pointer",
+              outline: "none",
+              appearance: "none",
+              WebkitAppearance: "none",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 10px center",
+            }}
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {showTypeFilter && (
         <div style={{
           display: "flex",
