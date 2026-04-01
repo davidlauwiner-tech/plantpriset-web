@@ -28,7 +28,7 @@ export default async function HomePage() {
           </form>
           <a href="/planera" className="pp-hero-planner">
             <span className="pp-hero-planner-icon">✦</span>
-            <span><strong>Planera din rabatt</strong><br /><small>AI-verktyg — beskriv din trädgård, få en planteringsplan</small></span>
+            <span><strong>Planera din rabatt</strong><br /><small>AI-verktyg — fota din rabatt, få växtförslag med priser</small></span>
             <span className="pp-hero-planner-arrow">→</span>
           </a>
           <div className="pp-hero-stats">
@@ -89,7 +89,7 @@ export default async function HomePage() {
         <div className="pp-planner-text">
           <p className="pp-section-label" style={{ color: "var(--sage)" }}>AI-verktyg</p>
           <h2>Planera din rabatt</h2>
-          <p>Beskriv din trädgård och få en AI-genererad planteringsplan med exakta priser från svenska butiker.</p>
+          <p>Fota din trädgård och få ett AI-genererat växtförslag — komplett med inköpslista och bästa priser från svenska butiker.</p>
           <a href="/planera" className="pp-planner-btn">Kom igång</a>
         </div>
         <div className="pp-planner-img">
