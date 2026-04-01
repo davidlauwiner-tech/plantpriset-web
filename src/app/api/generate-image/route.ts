@@ -164,7 +164,7 @@ export async function POST(request: Request) {
     // Skipping GPT-4o vision analysis as it produces inconsistent results
     let aiLayout: any[] = [];
 
-    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline, parsedLayout);
+    const diagram = generatePlantingDiagram(plants, parseFloat(length) || 3, parseFloat(width) || 1.5, style, bedShape, bedOutline);
 
     return NextResponse.json({ imageUrl, diagram, editDebug, bedShape, bedOutline });
   } catch (err: any) {
@@ -205,7 +205,7 @@ async function generateWithDalle3(
   return data.data?.[0]?.url;
 }
 
-function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null, layout: any[] = []): string {
+function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number, style: string, bedShape: string, bedOutline: number[][] | null = null): string {
   const W = 780, H = 520, legendW = 190;
   const bedX = 20, bedY = 60, bedW = W - legendW - 40, bedH = H - bedY - 45;
 
@@ -312,6 +312,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
           }
           let bestX = 0, bestY = 0, bestScore = -Infinity;
           for (let a = 0; a < 80; a++) {
+            if (placed.length === 0) continue;
             const anchor = placed[Math.floor(rand() * placed.length)];
             const angle = rand() * Math.PI * 2;
             const dist = (anchor.r + r) * (0.82 + rand() * 0.25);
