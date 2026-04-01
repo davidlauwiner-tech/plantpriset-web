@@ -8,8 +8,15 @@ export const metadata: Metadata = {
 };
 
 export default async function TillbehorPage() {
-  const subcats = await getSubcategories("tool");
+  const allSubcats = await getSubcategories("tool");
   const products = await getProducts({ type: "tool", limit: 12 });
+  // Hide empty categories
+  const { countProductsBySubcategory } = await import("@/lib/supabase");
+  const subcats = [];
+  for (const sc of allSubcats) {
+    const count = await countProductsBySubcategory(sc.id);
+    if (count > 0) subcats.push(sc);
+  }
 
   return (
     <div className="pp-results">

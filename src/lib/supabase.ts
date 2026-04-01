@@ -155,3 +155,12 @@ export async function getRelatedProducts(productType: string, currentSlug: strin
   const { data } = await query.limit(limit);
   return data || [];
 }
+
+export async function countProductsBySubcategory(subcategoryId: number): Promise<number> {
+  const { count, error } = await supabase
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("subcategory_id", subcategoryId);
+  if (error) return 0;
+  return count || 0;
+}
