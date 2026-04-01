@@ -253,18 +253,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
   interface Circle { x: number; y: number; r: number; num: number; }
   const circles: Circle[] = [];
 
-  if (layout && layout.length > 3) {
-    // USE AI-GENERATED LAYOUT
-    for (const l of layout) {
-      const speciesNum = indexMap[l.plant_index] || (l.plant_index + 1);
-      const sp = species.find(s => s.num === speciesNum);
-      if (!sp) continue;
-      const cx = bedX + (l.x / 100) * bedW;
-      const cy = bedY + (l.y / 100) * bedH;
-      const r = Math.max(8, Math.min(40, (l.r / 20) * (bedH / 8)));
-      circles.push({ x: cx, y: cy, r, num: speciesNum });
-    }
-  } else {
+  {
     // FALLBACK: algorithmic zone-based layout
     const pxPerM = bedW / lengthM;
     const rows: Record<string, { yMin: number; yMax: number }> = {
@@ -343,7 +332,6 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
         xCursor += zoneW;
       }
     }
-  }
 
   // SVG
   const shapeLabels: Record<string, string> = {
