@@ -102,22 +102,23 @@ export async function POST(request: Request) {
       if (frontP.length === 0 && midP.length > 1) frontP.push(midP.pop()!);
       if (midP.length === 0 && backP.length > 2) midP.push(backP.pop()!);
 
-      // Build position descriptions matching the diagram layout
-      function describeRow(row: any[], positions: string[]): string {
-        return row.map((p: any, i: number) => {
-          const pos = positions[Math.min(i, positions.length - 1)];
-          return p.name + " (" + p.quantity + " st, " + p.height_cm + "cm) " + pos;
-        }).join(". ");
-      }
+      // Build zone-based position descriptions matching the diagram
+      const zoneToPosition: Record<string, string> = {
+        "back-left": "in the BACK-LEFT area",
+        "back-center": "in the BACK-CENTER area",
+        "back-right": "in the BACK-RIGHT area",
+        "mid-left": "in the MIDDLE-LEFT area",
+        "mid-center": "in the MIDDLE-CENTER area",
+        "mid-right": "in the MIDDLE-RIGHT area",
+        "front-left": "in the FRONT-LEFT area (closest to viewer)",
+        "front-center": "in the FRONT-CENTER area (closest to viewer)",
+        "front-right": "in the FRONT-RIGHT area (closest to viewer)",
+      };
 
-      const backPositions = ["on the far left", "in the center-left", "in the center", "in the center-right", "on the far right"];
-      const midPositions = ["on the left side", "in the center-left", "in the center", "in the center-right", "on the right side"];
-      const frontPositions = ["on the left edge", "in the center-left", "in the center", "in the center-right", "on the right edge"];
-
-      const plantLayout =
-        (backP.length ? "BACK ROW (tallest, against fence/wall): " + describeRow(backP, backPositions) + ". " : "") +
-        (midP.length ? "MIDDLE ROW: " + describeRow(midP, midPositions) + ". " : "") +
-        (frontP.length ? "FRONT ROW (shortest, at the edge): " + describeRow(frontP, frontPositions) + ". " : "");
+      const plantLayout = plants.map((p: any) => {
+        const pos = zoneToPosition[p.zone] || "in the bed";
+        return p.name + " (" + p.quantity + " plants, " + p.height_cm + "cm tall, " + p.color + ") placed " + pos;
+      }).join(". ") + ".";
 
       const editPrompt =
         "Edit this garden photo to show a beautiful " + (styleDescriptions[style] || "romantic") + " style planting in the garden bed area. " +
@@ -233,12 +234,14 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
 
   // Sort plants tallest first
   const sorted = [...plants].sort((a: any, b: any) => b.height_cm - a.height_cm);
-  interface Species { num: number; name: string; color: string; qty: number; hcm: number; scm: number; row: string; }
+  interface Species { num: number; name: string; color: string; qty: number; hcm: number; scm: number; row: string; col: string; zone: string; }
   const species: Species[] = [];
   sorted.forEach((p: any, i: number) => {
     const h = p.height_cm;
-    const row = h > 70 ? "back" : h > 35 ? "mid" : "front";
-    species.push({ num: i + 1, name: p.name, color: cM[p.color] || "#6aa858", qty: p.quantity || 3, hcm: h, scm: p.spread_cm || Math.round(h * 0.6), row });
+    const zone = p.zone || (h > 70 ? "back-center" : h > 35 ? "mid-center" : "front-center");
+    const row = zone.startsWith("back") ? "back" : zone.startsWith("mid") ? "mid" : "front";
+    const col = zone.includes("left") ? "left" : zone.includes("right") ? "right" : "center";
+    species.push({ num: i + 1, name: p.name, color: cM[p.color] || "#6aa858", qty: p.quantity || 3, hcm: h, scm: p.spread_cm || Math.round(h * 0.6), row, col, zone });
   });
 
   // Build a mapping from original plant index to species number
@@ -281,14 +284,19 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
       const rowSpecies = byRow[rowName];
       if (rowSpecies.length === 0) continue;
       const band = rows[rowName];
-      const totalWeight = rowSpecies.reduce((s, sp) => s + sp.qty * Math.max(sp.scm, 30), 0);
-      let xCursor = bedX + 15;
       const availW = bedW - 30;
+      const thirdW = availW / 3;
+
+      // Sort species by column: left first, then center, then right
+      const colOrder: Record<string, number> = { left: 0, center: 1, right: 2 };
+      rowSpecies.sort((a: any, b: any) => (colOrder[a.col] || 1) - (colOrder[b.col] || 1));
 
       for (const sp of rowSpecies) {
-        const weight = (sp.qty * Math.max(sp.scm, 30)) / totalWeight;
-        const zoneW = Math.max(50, availW * weight);
-        const zoneCX = xCursor + zoneW / 2;
+        // Position based on column assignment
+        const colX = sp.col === "left" ? 0 : sp.col === "right" ? 2 : 1;
+        const zoneXStart = bedX + 15 + colX * thirdW;
+        const zoneW = thirdW;
+        const zoneCX = zoneXStart + zoneW / 2;
         const zoneCY = (band.yMin + band.yMax) / 2;
         const spreadPx = (sp.scm / 100) * (bedW / lengthM);
         const r = Math.max(10, Math.min(spreadPx / 2, (band.yMax - band.yMin) / 2.5, zoneW / 3));
@@ -310,7 +318,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
             const cx = anchor.x + Math.cos(angle) * dist;
             const cy = anchor.y + Math.sin(angle) * dist;
             if (!pointInBed(cx, cy, 5)) continue;
-            if (cx < xCursor - r * 0.3 || cx > xCursor + zoneW + r * 0.3) continue;
+            if (cx < zoneXStart - r * 0.3 || cx > zoneXStart + zoneW + r * 0.3) continue;
             if (cy < band.yMin - r * 0.2 || cy > band.yMax + r * 0.2) continue;
             let score = -Math.abs(cx - zoneCX) * 0.2 - Math.abs(cy - zoneCY) * 0.2;
             let blocked = false;
@@ -329,7 +337,7 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
             placed.push(c); circles.push(c);
           }
         }
-        xCursor += zoneW;
+        // Zone placement complete
       }
     }
 
@@ -381,8 +389,8 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
     s += '<circle cx="'+(legX+14)+'" cy="'+(y+2)+'" r="12" fill="'+sp.color+'" fill-opacity="0.22" stroke="'+sp.color+'" stroke-width="1.5"/>';
     s += '<text x="'+(legX+14)+'" y="'+(y+6)+'" text-anchor="middle" font-size="11" font-weight="800" fill="#444">'+sp.num+'</text>';
     s += '<text x="'+(legX+32)+'" y="'+y+'" font-size="10" font-weight="600" fill="#333">'+sp.name+'</text>';
-    const rowLabel = sp.row === "back" ? "bak" : sp.row === "mid" ? "mitt" : "fram";
-    s += '<text x="'+(legX+32)+'" y="'+(y+13)+'" font-size="8.5" fill="#888">'+sp.qty+'st \u00b7 '+sp.hcm+'cm \u00b7 '+rowLabel+'</text>';
+    const zoneLabel = (sp.zone || sp.row || "").replace("back-", "bak ").replace("mid-", "mitt ").replace("front-", "fram ").replace("left", "vä").replace("center", "mitt").replace("right", "hö");
+    s += '<text x="'+(legX+32)+'" y="'+(y+13)+'" font-size="8.5" fill="#888">'+sp.qty+'st \u00b7 '+sp.hcm+'cm \u00b7 '+zoneLabel+'</text>';
   });
 
   s += '</svg>';

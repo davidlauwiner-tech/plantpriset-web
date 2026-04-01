@@ -89,18 +89,21 @@ export default function PlaneraPage() {
       "- Typ: " + spaceName + "\n- Mått: " + length + "m x " + width + "m\n- Sol: " + sunName +
       "\n- Stil: " + styleName + " - " + styleDesc + "\n- Zon: 3-4 (Mellansverige)\n\n" +
       "Svara ENDAST med JSON (ingen markdown, inga backticks). Formatet:\n" +
-      '{"title":"Namn","description":"2-3 meningar","plants":[{"name":"Svenskt namn","latin":"Latinskt namn","quantity":3,"position":"Bakre raden","height_cm":80,"spread_cm":50,"color":"Lila","bloom_period":"Juni-Aug","care":"Lätt"}],"layout":[{"plant_index":0,"x":25,"y":15,"r":12}],"tips":"2-3 odlingstips"}\n\n' +
-      "Välj 6-10 sorter. Ange spread_cm (bredd vid mognad) för varje växt. BERÄKNA quantity så att HELA ytan täcks med rimligt antal plantor (max 30 totalt). Stora växter (spread 60cm+) behöver 1-2st, medelstora (30-60cm) 3-5st, små (<30cm) 4-8st.\n\n" +
-      "LAYOUT — detta är den VIKTIGASTE delen. Skapa ett 'layout'-fält som är en array med EN post per ENSKILD planta (inte per sort). Varje post har: plant_index (0-baserat index i plants-arrayen), x (0-100, vänster till höger), y (0-100, 0=bak/topp, 100=fram/botten), r (radie 5-20 baserat på spread_cm).\n" +
-      "REGLER för layout:\n" +
-      "- Höga växter (>70cm) ska ha y mellan 5-30 (bakre raden)\n" +
-      "- Medelväxter (35-70cm) ska ha y mellan 30-65 (mellanraden)\n" +
-      "- Låga växter (<35cm) ska ha y mellan 65-95 (främre raden)\n" +
-      "- SAMMA SORT ska GRUPPERAS IHOP — alla plantor av en sort ska vara intill varandra, som kluster\n" +
-      "- Klustren ska vara SPRIDDA HORISONTELLT över hela bredden (x: 10-90)\n" +
-      "- Cirklar av SAMMA sort får överlappa lite, men cirklar av OLIKA sorter ska INTE överlappa\n" +
-      "- TOTALT antal poster i layout = summan av alla quantity-värden\n" +
-      "- Tänk som en professionell planteringsplan: varje sorts kluster bildar en tydlig zon\n\n" +
+      '{"title":"Namn","description":"2-3 meningar","plants":[{"name":"Svenskt namn","latin":"Latinskt namn","quantity":3,"zone":"back-left","height_cm":80,"spread_cm":50,"color":"Lila","bloom_period":"Juni-Aug","care":"Lätt"}],"tips":"2-3 odlingstips"}\n\n' +
+      "Välj 6-9 sorter. Max 25 plantor totalt. Varje växt får en ZONE som anger exakt var i rabatten den ska stå.\n\n" +
+      "ZONER (tänk dig rabatten uppifrån, 3x3 rutnät):\n" +
+      "Bakre raden: back-left, back-center, back-right\n" +
+      "Mellanraden: mid-left, mid-center, mid-right\n" +
+      "Främre raden: front-left, front-center, front-right\n\n" +
+      "REGLER:\n" +
+      "- Höga växter (>70cm) MÅSTE ha zone som börjar med 'back-'\n" +
+      "- Medelväxter (35-70cm) MÅSTE ha zone som börjar med 'mid-'\n" +
+      "- Låga växter (<35cm) MÅSTE ha zone som börjar med 'front-'\n" +
+      "- Varje zone får max 1-2 sorter\n" +
+      "- Sprid sorterna jämnt: använd left, center OCH right\n" +
+      "- SAMMA sort ska bara ha EN zone (alla exemplar av sorten står tillsammans)\n" +
+      "- Ange spread_cm (bredd vid mognad) för varje växt\n" +
+      "- quantity: stora växter 1-2st, medelstora 2-4st, små 3-6st\n\n" +
       "Ska passa svenska förhållanden, ge blomning maj-sept, ha varierande höjder och färgharmoni.";
 
     try {
