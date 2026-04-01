@@ -333,6 +333,8 @@ function generatePlantingDiagram(plants: any[], lengthM: number, widthM: number,
       }
     }
 
+  }
+
   // SVG
   const shapeLabels: Record<string, string> = {
     rectangle: "Rektangul\u00e4r rabatt", kidney: "Njurformad rabatt", oval: "Oval rabatt",
