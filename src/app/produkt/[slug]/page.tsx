@@ -113,7 +113,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 {l.brand && <span className="pp-tag pp-tag-brand">{l.brand}</span>}
                 {!l.brand && isDup && <span className="pp-tag pp-tag-var">Variant {dupIdx}</span>}
                 {i === 0 && listings.length > 1 && <span className="pp-tag pp-tag-best">Lägst pris</span>}
-                {!l.in_stock && <span className="pp-tag pp-tag-oos">Ej i lager</span>}
               </div>
               <div className="pp-pt-price">
                 {fmtPrice(l.price_sek)}
