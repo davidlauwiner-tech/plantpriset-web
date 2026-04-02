@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, slug, subcategory_id")
+    .select("id, name, slug, subcategory_id, product_type")
     .ilike("name", `%${q}%`)
     .limit(8);
 
@@ -60,6 +60,7 @@ export async function GET(request: Request) {
 
     results.push({
       id: p.id,
+      product_type: p.product_type,
       name: p.name,
       slug: p.slug,
       listings,
