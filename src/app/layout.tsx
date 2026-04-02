@@ -78,7 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/priskollen">Priskollen</a>
             </div>
           </div>
-          <div className="pp-footer-bottom">© 2026 Plantpriset.se — Drivs av Core Maison AB</div>
+          <div className="pp-footer-bottom">© 2026 Plantpriset.se</div>
         </footer>
       </body>
     </html>
