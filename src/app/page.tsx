@@ -26,11 +26,18 @@ export default async function HomePage() {
             <input name="q" placeholder="Sök bland 8 000+ produkter..." autoFocus />
             <button type="submit">Sök</button>
           </form>
-          <a href="/planera" className="pp-hero-planner">
-            <span className="pp-hero-planner-icon">✦</span>
-            <span><strong>Planera din rabatt</strong><br /><small>AI-verktyg — fota din rabatt, få växtförslag med priser</small></span>
-            <span className="pp-hero-planner-arrow">→</span>
-          </a>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+            <a href="/planera" className="pp-hero-planner">
+              <span className="pp-hero-planner-icon">✦</span>
+              <span><strong>Planera din rabatt</strong><br /><small>AI-verktyg — fota din rabatt, få växtförslag med priser</small></span>
+              <span className="pp-hero-planner-arrow">→</span>
+            </a>
+            <a href="/priskollen" className="pp-hero-planner" style={{ background: "var(--sage)" }}>
+              <span className="pp-hero-planner-icon">🔍</span>
+              <span><strong>Priskollen</strong><br /><small>Vet du vad du vill ha? Jämför priser direkt</small></span>
+              <span className="pp-hero-planner-arrow">→</span>
+            </a>
+          </div>
           <div className="pp-hero-stats">
             <span><strong>8 182</strong> produkter</span>
             <span><strong>7</strong> butiker</span>
