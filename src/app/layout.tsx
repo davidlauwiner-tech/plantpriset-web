@@ -44,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <a href="/vaxter">Växter</a>
             <a href="/lokar">Lökar</a>
             <a href="/tillbehor">Tillbehör</a>
+            <a href="/priskollen" className="pp-nav-link">Priskollen</a>
             <a href="/planera" className="pp-nav-cta">Planera din rabatt</a>
           </div>
         </nav>
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="pp-footer-col">
               <h4>Verktyg</h4>
               <a href="/planera">Planera din rabatt</a>
+              <a href="/priskollen">Priskollen</a>
             </div>
           </div>
           <div className="pp-footer-bottom">© 2026 Plantpriset.se — Drivs av Core Maison AB</div>
