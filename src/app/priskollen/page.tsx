@@ -5,13 +5,25 @@ interface SearchResult {
   id: number;
   name: string;
   slug: string;
+  product_type?: string;
   listings: { price: number; retailer: string; url: string }[];
   cheapest: number | null;
+}
+
+interface SeedAlternative {
+  id: number;
+  name: string;
+  slug: string;
+  cheapestPrice: number;
+  cheapestRetailer: string;
+  cheapestUrl: string;
 }
 
 interface ListItem {
   product: SearchResult;
   quantity: number;
+  seedAlternatives?: SeedAlternative[];
+  seedLoading?: boolean;
 }
 
 export default function PriskollenPage() {
@@ -24,12 +36,10 @@ export default function PriskollenPage() {
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<any>(null);
 
-  // Get all unique retailers across all items
   const allRetailers = Array.from(new Set(
     list.flatMap(item => item.product.listings.map(l => l.retailer))
   )).sort();
 
-  // Click outside to close dropdown
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -58,13 +68,42 @@ export default function PriskollenPage() {
     debounceRef.current = setTimeout(() => search(val), 300);
   }
 
+  async function fetchSeedAlternatives(item: ListItem) {
+    const productType = item.product.product_type || 
+      (item.product.slug.endsWith("-plant") ? "plant" : "");
+    
+    if (productType === "seed" || !productType) return;
+
+    try {
+      const res = await fetch(
+        "/api/seed-alternatives?name=" + encodeURIComponent(item.product.name) + "&product_type=" + encodeURIComponent(productType)
+      );
+      const data = await res.json();
+      setList(prev => prev.map(li => 
+        li.product.id === item.product.id 
+          ? { ...li, seedAlternatives: data || [], seedLoading: false }
+          : li
+      ));
+    } catch {
+      setList(prev => prev.map(li => 
+        li.product.id === item.product.id 
+          ? { ...li, seedAlternatives: [], seedLoading: false }
+          : li
+      ));
+    }
+  }
+
   function addToList(product: SearchResult) {
     if (list.find(item => item.product.id === product.id)) return;
-    setList([...list, { product, quantity: 1 }]);
+    const newItem: ListItem = { product, quantity: 1, seedLoading: true };
+    const newList = [...list, newItem];
+    setList(newList);
     setQuery("");
     setResults([]);
     setShowResults(false);
     setShowPrices(false);
+
+    fetchSeedAlternatives(newItem);
   }
 
   function updateQuantity(id: number, qty: number) {
@@ -77,18 +116,16 @@ export default function PriskollenPage() {
     setShowPrices(false);
   }
 
-  // Calculate total per retailer
   function getRetailerTotal(retailer: string): number | null {
     let total = 0;
     for (const item of list) {
       const listing = item.product.listings.find(l => l.retailer === retailer);
-      if (!listing) return null; // Retailer doesn't have this product
+      if (!listing) return null;
       total += listing.price * item.quantity;
     }
     return total;
   }
 
-  // Get cheapest mix total
   function getCheapestMixTotal(): number {
     return list.reduce((sum, item) => {
       const cheapest = item.product.listings.length > 0
@@ -98,6 +135,24 @@ export default function PriskollenPage() {
     }, 0);
   }
 
+  function getSeedSavingsTotal(): number {
+    let savings = 0;
+    for (const item of list) {
+      if (item.seedAlternatives && item.seedAlternatives.length > 0 && item.product.cheapest) {
+        const seedPrice = item.seedAlternatives[0].cheapestPrice;
+        const plantTotal = item.product.cheapest * item.quantity;
+        if (seedPrice < plantTotal) {
+          savings += plantTotal - seedPrice;
+        }
+      }
+    }
+    return savings;
+  }
+
+  const hasSeedAlternatives = list.some(
+    item => item.seedAlternatives && item.seedAlternatives.length > 0 && item.product.cheapest
+  );
+
   return (
     <div className="pp-results" style={{ maxWidth: 800, margin: "0 auto" }}>
       <a href="/" className="pp-back">&larr; Tillbaka</a>
@@ -106,7 +161,6 @@ export default function PriskollenPage() {
         Vet du redan vilka växter du vill ha? Bygg din lista och hitta bästa priserna från 7 svenska butiker.
       </p>
 
-      {/* Search input */}
       <div ref={searchRef} style={{ position: "relative", marginBottom: 24 }}>
         <input
           type="text"
@@ -125,7 +179,6 @@ export default function PriskollenPage() {
           <div style={{ position: "absolute", right: 16, top: 16, color: "var(--fg3)", fontSize: 13 }}>Söker...</div>
         )}
 
-        {/* Dropdown results */}
         {showResults && results.length > 0 && (
           <div style={{
             position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
@@ -156,44 +209,75 @@ export default function PriskollenPage() {
         )}
       </div>
 
-      {/* Shopping list */}
       {list.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 20, marginBottom: 16 }}>
             Din lista ({list.length} {list.length === 1 ? "växt" : "växter"})
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {list.map((item, i) => (
-              <div key={item.product.id} style={{
-                display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
-                border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg)",
-              }}>
-                <span style={{
-                  width: 32, height: 32, borderRadius: "50%", background: "var(--accent)",
-                  color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 14, fontWeight: 700, flexShrink: 0,
-                }}>{i + 1}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{item.product.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--fg3)" }}>
-                    {item.product.listings.length} {item.product.listings.length === 1 ? "butik" : "butiker"} · 
-                    {item.product.cheapest ? " Från " + Math.round(item.product.cheapest) + " kr" : " Inget pris"}
+            {list.map((item, i) => {
+              const seed = item.seedAlternatives?.[0];
+              const hasSeedTip = seed && item.product.cheapest && (item.product.cheapest * item.quantity) > seed.cheapestPrice;
+              return (
+              <div key={item.product.id}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+                  border: "1px solid var(--border)", borderRadius: hasSeedTip ? "10px 10px 0 0" : 10,
+                  background: "var(--bg)",
+                }}>
+                  <span style={{
+                    width: 32, height: 32, borderRadius: "50%", background: "var(--accent)",
+                    color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14, fontWeight: 700, flexShrink: 0,
+                  }}>{i + 1}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>{item.product.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--fg3)" }}>
+                      {item.product.listings.length} {item.product.listings.length === 1 ? "butik" : "butiker"} · 
+                      {item.product.cheapest ? " Från " + Math.round(item.product.cheapest) + " kr" : " Inget pris"}
+                    </div>
                   </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                      style={{ width: 28, height: 28, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg)", cursor: "pointer", fontSize: 16 }}>−</button>
+                    <span style={{ fontSize: 16, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                      style={{ width: 28, height: 28, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg)", cursor: "pointer", fontSize: 16 }}>+</button>
+                  </div>
+                  <button onClick={() => removeItem(item.product.id)}
+                    style={{ width: 28, height: 28, border: "none", background: "transparent", cursor: "pointer", fontSize: 18, color: "var(--fg3)" }}>×</button>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                    style={{ width: 28, height: 28, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg)", cursor: "pointer", fontSize: 16 }}>−</button>
-                  <span style={{ fontSize: 16, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                    style={{ width: 28, height: 28, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg)", cursor: "pointer", fontSize: 16 }}>+</button>
-                </div>
-                <button onClick={() => removeItem(item.product.id)}
-                  style={{ width: 28, height: 28, border: "none", background: "transparent", cursor: "pointer", fontSize: 18, color: "var(--fg3)" }}>×</button>
+
+                {hasSeedTip && (
+                  <div style={{
+                    padding: "10px 16px 10px 60px",
+                    background: "#fef9ef",
+                    borderLeft: "1px solid var(--border)",
+                    borderRight: "1px solid var(--border)",
+                    borderBottom: "1px solid var(--border)",
+                    borderRadius: "0 0 10px 10px",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    color: "#555",
+                  }}>
+                    <span style={{ marginRight: 4 }}>🌱</span>
+                    <strong>Spara {Math.round((item.product.cheapest! * item.quantity) - seed!.cheapestPrice)} kr?</strong>{" "}
+                    <a href={"/produkt/" + seed!.slug} style={{ color: "var(--accent)", textDecoration: "underline" }}>
+                      {seed!.name}
+                    </a>{" "}
+                    (frö) från {Math.round(seed!.cheapestPrice)} kr hos {seed!.cheapestRetailer}
+                    {item.quantity > 1 && (
+                      <span style={{ color: "#888" }}>
+                        {" "}— ett fröpaket ger många plantor
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* CTA button */}
           <button
             onClick={() => setShowPrices(true)}
             style={{
@@ -207,10 +291,8 @@ export default function PriskollenPage() {
         </div>
       )}
 
-      {/* Price comparison results */}
       {showPrices && list.length > 0 && (
         <div style={{ marginTop: 16 }}>
-          {/* Cheapest mix summary */}
           <div style={{
             padding: "24px", background: "var(--green-bg)", borderRadius: 16,
             marginBottom: 32, textAlign: "center",
@@ -224,7 +306,29 @@ export default function PriskollenPage() {
             </div>
           </div>
 
-          {/* Per-retailer totals */}
+          {hasSeedAlternatives && getSeedSavingsTotal() > 0 && (
+            <div style={{
+              padding: "16px 20px",
+              background: "#fef9ef",
+              border: "1px solid #f0dca0",
+              borderRadius: 12,
+              marginBottom: 24,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}>
+              <span style={{ fontSize: 24 }}>🌱</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>
+                  Spara upp till {Math.round(getSeedSavingsTotal())} kr med frön istället
+                </div>
+                <div style={{ fontSize: 13, color: "var(--fg3)" }}>
+                  Frön tar längre tid, men kostar en bråkdel. Se tips vid varje växt nedan.
+                </div>
+              </div>
+            </div>
+          )}
+
           {allRetailers.length > 1 && (
             <div style={{ marginBottom: 32 }}>
               <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 18, marginBottom: 12 }}>Totalpris per butik</h3>
@@ -257,12 +361,14 @@ export default function PriskollenPage() {
             </div>
           )}
 
-          {/* Detailed price table per product */}
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 20, marginBottom: 16 }}>Prisjämförelse per växt</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {list.map((item, i) => {
+            {list.map((item) => {
               const sorted = [...item.product.listings].sort((a, b) => a.price - b.price);
               const cheapestPrice = sorted[0]?.price;
+              const seed = item.seedAlternatives?.[0];
+              const hasSeedTip = seed && item.product.cheapest && (item.product.cheapest * item.quantity) > seed.cheapestPrice;
+
               return (
                 <div key={item.product.id} style={{
                   border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden",
@@ -309,12 +415,39 @@ export default function PriskollenPage() {
                       Inga priser hittades — <a href={"/produkt/" + item.product.slug} style={{ color: "var(--accent)" }}>se produkt →</a>
                     </div>
                   )}
+
+                  {hasSeedTip && (
+                    <div style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "10px 20px", borderTop: "2px dashed #f0dca0",
+                      background: "#fef9ef",
+                    }}>
+                      <div style={{ fontSize: 13 }}>
+                        <span style={{ marginRight: 4 }}>🌱</span>
+                        <a href={"/produkt/" + seed!.slug} style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>
+                          {seed!.name}
+                        </a>
+                        <span style={{ color: "var(--fg3)", marginLeft: 6 }}>(frö)</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: 15, fontWeight: 600 }}>{Math.round(seed!.cheapestPrice)} kr</span>
+                          <span style={{ fontSize: 12, color: "#b8860b", marginLeft: 8 }}>
+                            spar {Math.round((item.product.cheapest! * item.quantity) - seed!.cheapestPrice)} kr
+                          </span>
+                        </div>
+                        <a href={seed!.cheapestUrl} target="_blank" rel="noopener noreferrer" style={{
+                          padding: "6px 14px", background: "#b8860b", color: "#fff",
+                          borderRadius: 6, fontSize: 12, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap",
+                        }}>Köp frö →</a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* Start over */}
           <div style={{ display: "flex", gap: 12, marginTop: 32 }}>
             <button onClick={() => { setList([]); setShowPrices(false); }}
               style={{ padding: "12px 24px", cursor: "pointer", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", fontFamily: "inherit", fontSize: 15 }}>
@@ -324,7 +457,6 @@ export default function PriskollenPage() {
         </div>
       )}
 
-      {/* Empty state */}
       {list.length === 0 && (
         <div style={{
           textAlign: "center", padding: "48px 24px", border: "2px dashed var(--border)",
