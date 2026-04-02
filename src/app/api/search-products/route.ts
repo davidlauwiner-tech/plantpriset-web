@@ -20,25 +20,50 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json([]);
 
-  // For each product, get the cheapest listing
   const results = [];
   for (const p of (data || [])) {
-    const { data: listings } = await supabase
+    // Get listings through the junction table
+    const { data: pl } = await supabase
       .from("product_listings")
-      .select("price, retailer_id, url, retailers(name)")
-      .eq("product_id", p.id)
-      .order("price", { ascending: true });
+      .select("listing_id")
+      .eq("product_id", p.id);
+
+    const listingIds = (pl || []).map((r: any) => r.listing_id);
+    
+    let listings: any[] = [];
+    if (listingIds.length > 0) {
+      const { data: listingsData } = await supabase
+        .from("listings")
+        .select("id, price_sek, retailer_id, product_url, name")
+        .in("id", listingIds)
+        .order("price_sek", { ascending: true });
+
+      if (listingsData) {
+        // Get retailer names
+        const retailerIds = [...new Set(listingsData.map((l: any) => l.retailer_id))];
+        const { data: retailers } = await supabase
+          .from("retailers")
+          .select("id, name")
+          .in("id", retailerIds);
+
+        const retailerMap: Record<number, string> = {};
+        (retailers || []).forEach((r: any) => { retailerMap[r.id] = r.name; });
+
+        listings = listingsData.map((l: any) => ({
+          price: l.price_sek,
+          retailer: retailerMap[l.retailer_id] || "Okänd",
+          url: l.product_url,
+          name: l.name,
+        }));
+      }
+    }
 
     results.push({
       id: p.id,
       name: p.name,
       slug: p.slug,
-      listings: (listings || []).map((l: any) => ({
-        price: l.price,
-        retailer: l.retailers?.name || "Okänd",
-        url: l.url,
-      })),
-      cheapest: listings?.[0]?.price || null,
+      listings,
+      cheapest: listings.length > 0 ? listings[0].price : null,
     });
   }
 
