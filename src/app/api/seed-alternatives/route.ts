@@ -6,6 +6,27 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 );
 
+async function fetchSeedCount(url: string): Promise<string | null> {
+  // Only fetch from Impecta (consistent format)
+  if (!url.includes("impecta.se")) return null;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    const html = await res.text();
+    // Look for "Portionsmängd" pattern: "25 frö" or "100 frö"
+    const match = html.match(/Portionsm[äa]ngd[^<]*?(\d+)\s*frö/i);
+    if (match) return match[1];
+    // Fallback: look for "X frö" near product info
+    const match2 = html.match(/(\d+)\s*frö\s/);
+    if (match2 && parseInt(match2[1]) > 1 && parseInt(match2[1]) < 10000) return match2[1];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const name = searchParams.get("name") || "";
@@ -91,6 +112,14 @@ export async function GET(request: Request) {
   }
 
   results.sort((a, b) => a.cheapestPrice - b.cheapestPrice);
+
+  // Fetch seed count for the top result only (to keep response fast)
+  if (results.length > 0 && results[0].cheapestUrl) {
+    const seedCount = await fetchSeedCount(results[0].cheapestUrl);
+    if (seedCount) {
+      results[0].seedCount = seedCount;
+    }
+  }
 
   return NextResponse.json(results);
 }

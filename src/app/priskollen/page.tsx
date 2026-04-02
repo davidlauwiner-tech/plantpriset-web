@@ -17,6 +17,7 @@ interface SeedAlternative {
   cheapestPrice: number;
   cheapestRetailer: string;
   cheapestUrl: string;
+  seedCount?: string;
 }
 
 interface ListItem {
@@ -265,7 +266,7 @@ export default function PriskollenPage() {
                     <a href={"/produkt/" + seed!.slug} style={{ color: "var(--accent)", textDecoration: "underline" }}>
                       {seed!.name}
                     </a>{" "}
-                    (frö) från {Math.round(seed!.cheapestPrice)} kr hos {seed!.cheapestRetailer}
+                    (frö{seed!.seedCount ? `, ${seed!.seedCount} frön` : ""}) från {Math.round(seed!.cheapestPrice)} kr hos {seed!.cheapestRetailer}
                     {item.quantity > 1 && (
                       <span style={{ color: "#888" }}>
                         {" "}— ett fröpaket ger många plantor
@@ -427,7 +428,7 @@ export default function PriskollenPage() {
                         <a href={"/produkt/" + seed!.slug} style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>
                           {seed!.name}
                         </a>
-                        <span style={{ color: "var(--fg3)", marginLeft: 6 }}>(frö)</span>
+                        <span style={{ color: "var(--fg3)", marginLeft: 6 }}>(frö{seed!.seedCount ? `, ${seed!.seedCount} frön` : ""})</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ textAlign: "right" }}>
