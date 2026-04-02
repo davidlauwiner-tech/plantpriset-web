@@ -289,13 +289,19 @@ export default function PriskollenPage() {
                         {l.retailer}
                         {l.price === cheapestPrice && <span style={{ color: "var(--accent)", fontSize: 11, marginLeft: 6 }}>★ Billigast</span>}
                       </span>
-                      <div style={{ textAlign: "right" }}>
-                        <span style={{ fontSize: 15, fontWeight: 600 }}>{Math.round(l.price)} kr</span>
-                        {item.quantity > 1 && (
-                          <span style={{ fontSize: 12, color: "var(--fg3)", marginLeft: 8 }}>
-                            = {Math.round(l.price * item.quantity)} kr
-                          </span>
-                        )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: 15, fontWeight: 600 }}>{Math.round(l.price)} kr</span>
+                          {item.quantity > 1 && (
+                            <span style={{ fontSize: 12, color: "var(--fg3)", marginLeft: 8 }}>
+                              = {Math.round(l.price * item.quantity)} kr
+                            </span>
+                          )}
+                        </div>
+                        <a href={l.url} target="_blank" rel="noopener noreferrer" style={{
+                          padding: "6px 14px", background: "var(--accent)", color: "#fff",
+                          borderRadius: 6, fontSize: 12, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap",
+                        }}>Till butik →</a>
                       </div>
                     </div>
                   )) : (
