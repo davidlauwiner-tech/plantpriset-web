@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     if (listingIds.length > 0) {
       const { data: listingsData } = await supabase
         .from("listings")
-        .select("price_sek, retailer_id, product_url")
+        .select("price_sek, retailer_id, product_url, quantity")
         .in("id", listingIds)
         .order("price_sek", { ascending: true })
         .limit(1);
@@ -68,6 +68,7 @@ export async function GET(request: Request) {
       if (listingsData && listingsData.length > 0) {
         cheapestPrice = listingsData[0].price_sek;
         cheapestUrl = listingsData[0].product_url;
+        const qty = listingsData[0].quantity;
 
         const { data: retailer } = await supabase
           .from("retailers")
@@ -87,6 +88,7 @@ export async function GET(request: Request) {
         cheapestPrice,
         cheapestRetailer,
         cheapestUrl,
+        seedCount: qty && qty > 1 ? qty : null,
       });
     }
   }
