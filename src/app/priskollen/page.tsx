@@ -17,7 +17,7 @@ interface SeedAlternative {
   cheapestPrice: number;
   cheapestRetailer: string;
   cheapestUrl: string;
-  seedCount?: string;
+  seedCount?: number;
 }
 
 interface ListItem {
