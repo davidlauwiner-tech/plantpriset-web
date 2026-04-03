@@ -56,6 +56,7 @@ export async function GET(request: Request) {
     let cheapestPrice: number | null = null;
     let cheapestRetailer = "";
     let cheapestUrl = "";
+    let qty: number | null = null;
 
     if (listingIds.length > 0) {
       const { data: listingsData } = await supabase
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
       if (listingsData && listingsData.length > 0) {
         cheapestPrice = listingsData[0].price_sek;
         cheapestUrl = listingsData[0].product_url;
-        const qty = listingsData[0].quantity;
+        qty = listingsData[0].quantity;
 
         const { data: retailer } = await supabase
           .from("retailers")
