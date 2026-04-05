@@ -1,17 +1,29 @@
-import { getFeaturedProducts } from "@/lib/supabase";
+import { getFeaturedProducts, supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import { Sprout, Flower2, Flower, Shovel } from "lucide-react";
 import Image from "next/image";
 
-const CATEGORIES = [
-  { slug: "/froer", label: "Fröer", icon: Sprout, desc: "Grönsaker, blommor, örter och prydnadsgräs", count: "4 200+" },
-  { slug: "/vaxter", label: "Växter", icon: Flower2, desc: "Perenner, buskar, träd och krukväxter", count: "1 060+" },
-  { slug: "/lokar", label: "Lökar & Knölar", icon: Flower, desc: "Tulpaner, dahlior, krokus och narcisser", count: "215+" },
-  { slug: "/tillbehor", label: "Tillbehör", icon: Shovel, desc: "Jord, gödsel, krukor, bevattning och redskap", count: "1 380+" },
-];
+
 
 export default async function HomePage() {
   const featured = await getFeaturedProducts(6);
+
+  // Dynamic stats
+  const { count: productCount } = await supabase.from("products").select("id", { count: "exact", head: true });
+  const { count: seedCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "seed");
+  const { count: plantCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "plant");
+  const { count: bulbCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "bulb");
+  const { count: accessoryCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "accessory");
+  const { count: comparisonCount } = await supabase.from("product_listings").select("product_id", { count: "exact", head: true });
+
+  const fmt = (n: number) => n ? n.toLocaleString("sv-SE") : "0";
+
+  const CATEGORIES = [
+    { slug: "/froer", label: "Fröer", icon: Sprout, desc: "Grönsaker, blommor, örter och prydnadsgräs", count: fmt(seedCount || 0) + "+" },
+    { slug: "/vaxter", label: "Växter", icon: Flower2, desc: "Perenner, buskar, träd och krukväxter", count: fmt(plantCount || 0) + "+" },
+    { slug: "/lokar", label: "Lökar & Knölar", icon: Flower, desc: "Tulpaner, dahlior, krokus och narcisser", count: fmt(bulbCount || 0) + "+" },
+    { slug: "/tillbehor", label: "Tillbehör", icon: Shovel, desc: "Jord, gödsel, krukor, bevattning och redskap", count: fmt(accessoryCount || 0) + "+" },
+  ];
 
   return (
     <>
@@ -23,7 +35,7 @@ export default async function HomePage() {
           <p className="pp-hero-sub">Jämför priser på växter, frön och trädgårdstillbehör från sju svenska butiker. Helt gratis, varje dag.</p>
           <form action="/sok" method="GET" className="pp-hero-search">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--taupe)", flexShrink: 0 }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-            <input name="q" placeholder="Sök bland 8 000+ produkter..." autoFocus />
+            <input name="q" placeholder={`Sök bland ${fmt(productCount || 0)}+ produkter...`} autoFocus />
             <button type="submit">Sök</button>
           </form>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
@@ -39,9 +51,9 @@ export default async function HomePage() {
             </a>
           </div>
           <div className="pp-hero-stats">
-            <span><strong>8 182</strong> produkter</span>
+            <span><strong>{fmt(productCount || 0)}</strong> produkter</span>
             <span><strong>7</strong> butiker</span>
-            <span><strong>1 198</strong> prisjämförelser</span>
+            <span><strong>{fmt(comparisonCount || 0)}</strong> prisjämförelser</span>
           </div>
         </div>
         <div className="pp-hero-image">
