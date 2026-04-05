@@ -13,7 +13,9 @@ export default async function HomePage() {
   const { count: seedCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "seed");
   const { count: plantCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "plant");
   const { count: bulbCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "bulb");
-  const { count: accessoryCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "accessory");
+  const { count: toolCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "tool");
+  const { count: otherCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("product_type", "other");
+  const accessoryCount = (toolCount || 0) + (otherCount || 0);
   const { count: comparisonCount } = await supabase.from("product_listings").select("product_id", { count: "exact", head: true });
 
   const fmt = (n: number) => n ? n.toLocaleString("sv-SE") : "0";
