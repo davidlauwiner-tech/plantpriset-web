@@ -55,7 +55,7 @@ export default async function HomePage() {
           <div className="pp-hero-stats">
             <span><strong>{fmt(productCount || 0)}</strong> produkter</span>
             <span><strong>7</strong> butiker</span>
-            <span><strong>{fmt(comparisonCount || 0)}</strong> prisjämförelser</span>
+            <span><strong>{fmt(comparisonCount || 0)}</strong> prispunkter</span>
           </div>
         </div>
         <div className="pp-hero-image">
