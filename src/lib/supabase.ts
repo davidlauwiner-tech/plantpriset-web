@@ -95,7 +95,7 @@ export async function getSubcategories(parentCategory: string) {
   return data || [];
 }
 
-export async function getProductsBySubcategory(subcategoryId: number, limit = 60) {
+export async function getProductsBySubcategory(subcategoryId: number, limit = 500) {
   const { data, error } = await supabase
     .from("products")
     .select("id, name, slug, latin_name, image_url, product_type, subcategory_id, colour, subcategories(slug), product_listings(product_id, listings(price_sek, retailer_id))")
