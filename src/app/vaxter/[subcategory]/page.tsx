@@ -16,7 +16,7 @@ export default async function SubcategoryPage({ params }: { params: Promise<{ su
   const subcats = await getSubcategories("plant");
   const sc = subcats.find((s: any) => s.slug === subcategory);
   if (!sc) notFound();
-  const products = await getProductsBySubcategory(sc.id, 60);
+  const products = await getProductsBySubcategory(sc.id);
 
   return (
     <div className="pp-results">
