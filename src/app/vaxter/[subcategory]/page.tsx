@@ -1,20 +1,28 @@
-import { getSubcategories, getProductsBySubcategory } from "@/lib/supabase";
+import { getProductsBySubcategory, supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+async function getSubcategoryBySlug(slug: string) {
+  const { data } = await supabase
+    .from("subcategories")
+    .select("id, slug, name, description, icon, parent_category, parent_id")
+    .eq("slug", slug)
+    .eq("parent_category", "plant")
+    .single();
+  return data;
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ subcategory: string }> }): Promise<Metadata> {
   const { subcategory } = await params;
-  const subcats = await getSubcategories("plant");
-  const sc = subcats.find((s: any) => s.slug === subcategory);
+  const sc = await getSubcategoryBySlug(subcategory);
   if (!sc) return { title: "Kategori hittades inte" };
   return { title: sc.name + " — Växter | Plantpriset", description: sc.description || "" };
 }
 
 export default async function SubcategoryPage({ params }: { params: Promise<{ subcategory: string }> }) {
   const { subcategory } = await params;
-  const subcats = await getSubcategories("plant");
-  const sc = subcats.find((s: any) => s.slug === subcategory);
+  const sc = await getSubcategoryBySlug(subcategory);
   if (!sc) notFound();
   const products = await getProductsBySubcategory(sc.id);
 
